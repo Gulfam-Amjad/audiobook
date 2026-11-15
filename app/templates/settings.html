@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Settings - AI Video Generation Manager{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Provider keys are not here on purpose: they stay in <code>.env</code>, which is
+    never read into a page. Everything below is stored in the database and takes
+    effect without a restart.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div id="settings-form">
+    {% include "partials/settings_form.html" %}
+  </div>
+{% endblock %}

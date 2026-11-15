@@ -1,0 +1,87 @@
+<div id="audiobook-list"
+  {% if running %}hx-get="/partials/audiobooks" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  {% if running %}
+    <div class="panel mb">
+      <div class="spread">
+        <h2>Making: {{ running.title }}</h2>
+        <button class="small danger" hx-post="/audiobooks/cancel" hx-target="#audiobook-list"
+                hx-swap="outerHTML" hx-confirm="Stop making this audiobook? Finished chapters are kept.">
+          Stop
+        </button>
+      </div>
+      <p class="small">{{ running.message }}</p>
+      <div class="bar"><span style="width: {{ running.progress_pct }}%"></span></div>
+      <p class="tiny muted mt">
+        {{ running.chapters_done }} of {{ running.chapters_total }} chapter(s) done,
+        {{ (running.audio_s or 0) | duration }} of audio so far. {{ running.voice_label }}.
+      </p>
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Audiobooks</h2>
+    {% if books %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Voice</th><th>Status</th><th>Length</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for book in books %}
+              <tr>
+                <td>
+                  {{ book.title }}
+                  <div class="tiny muted">{{ (book.created_at or '')[:16] | replace('T', ' ') }} UTC</div>
+                </td>
+                <td class="tiny">
+                  {{ book.voice_label }}
+                  <div class="muted">{{ book.language_label }}{% if book.speed and book.speed != 1.0 %}, speed {{ book.speed }}{% endif %}</div>
+                </td>
+                <td class="tiny">
+                  {% if book.status == 'done' %}
+                    <span class="badge good">done</span>
+                  {% elif book.is_running %}
+                    <span class="badge busy">making</span>
+                  {% elif book.status == 'failed' %}
+                    <span class="badge bad">failed</span>
+                  {% else %}
+                    <span class="badge warn">{{ book.status }}</span>
+                  {% endif %}
+                  {% if book.status != 'done' %}
+                    <div class="muted">{{ book.chapters_done }} of {{ book.chapters_total }} chapter(s)</div>
+                  {% endif %}
+                  {% if book.status in ('failed', 'stopped', 'cancelled') and book.message %}
+                    <div class="muted">{{ book.message }}</div>
+                  {% endif %}
+                </td>
+                <td class="tiny">
+                  {% if book.duration_s %}{{ book.duration_s | duration }}{% endif %}
+                  {% if book.size_bytes %}<div class="muted">{{ book.size_bytes | filesize }}</div>{% endif %}
+                </td>
+                <td class="right">
+                  {% if book.mp3_rel %}
+                    <audio controls preload="none" src="/files/media?path={{ book.mp3_rel | urlencode }}" style="max-width: 260px"></audio>
+                    <div class="row small">
+                      <a class="button small" href="/files/download?path={{ book.mp3_rel | urlencode }}">Download MP3</a>
+                    </div>
+                  {% endif %}
+                  {% if not book.is_running and book.status != 'done' %}
+                    <button class="small" hx-post="/audiobooks/{{ book.id | urlencode }}/resume"
+                            hx-target="#audiobook-list" hx-swap="outerHTML">Resume</button>
+                  {% endif %}
+                  {% if not book.is_running %}
+                    <button class="small danger" hx-post="/audiobooks/{{ book.id | urlencode }}/delete"
+                            hx-target="#audiobook-list" hx-swap="outerHTML"
+                            hx-confirm="Delete '{{ book.title }}' and its audio files?">Delete</button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">No audiobooks yet.</p>
+    {% endif %}
+  </div>
+</div>

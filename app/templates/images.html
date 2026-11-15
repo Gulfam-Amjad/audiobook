@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Image Library - AI Video Generation Manager{% endblock %}
+{% block heading %}Image Library{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Your original files are never modified or moved. The library stores paths,
+    hashes and thumbnails only.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div class="panel">
+    <h2>Folders</h2>
+    <form hx-post="/images/folders" hx-target="#scan-status" hx-swap="innerHTML">
+      <div class="field-row">
+        <div class="field" style="flex: 3 1 340px;">
+          <label for="folder_path">Folder to import (absolute path)</label>
+          <input type="text" id="folder_path" name="folder_path"
+                 placeholder="D:\Pictures\source-set" required>
+        </div>
+        <div class="field" style="flex: 0 0 auto; align-self: flex-end;">
+          <div class="check" style="margin-bottom: 7px;">
+            <input type="checkbox" id="recursive" name="recursive" value="true" checked>
+            <label for="recursive">Include subfolders</label>
+          </div>
+        </div>
+        <div class="field" style="flex: 0 0 auto; align-self: flex-end;">
+          <button type="submit" class="btn-primary" style="margin-bottom: 7px;">
+            Add and scan
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <div id="scan-status"
+         hx-get="/partials/images/scans"
+         hx-trigger="every 3s"
+         hx-swap="innerHTML">
+      {% include "partials/scan_status.html" %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="spread mb">
+      <h2 style="margin:0">
+        Images
+        <span class="muted small">
+          ({{ counts.get('new', 0) }} new, {{ counts.get('queued', 0) }} queued,
+          {{ counts.get('completed', 0) }} completed, {{ counts.get('failed', 0) }} failed,
+          {{ counts.get('missing', 0) }} missing)
+        </span>
+      </h2>
+      <button class="btn-small" hx-post="/images/verify" hx-target="#scan-status">
+        Check files still exist
+      </button>
+    </div>
+
+    <form id="image-filters"
+          hx-get="/partials/images/grid"
+          hx-target="#image-grid"
+          hx-trigger="change, submit"
+          hx-swap="innerHTML">
+      <div class="field-row">
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="">All</option>
+            {% for value in ['new', 'queued', 'processing', 'completed', 'failed', 'missing'] %}
+              <option value="{{ value }}" {{ 'selected' if query.status == value }}>
+                {{ value | capitalize }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="folder_id">Folder</label>
+          <select id="folder_id" name="folder_id">
+            <option value="">All</option>
+            {% for folder in folders %}
+              <option value="{{ folder.id }}" {{ 'selected' if query.folder_id == folder.id }}>
+                {{ folder.path }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field" style="flex: 2 1 220px;">
+          <label for="search">Filename contains</label>
+          <input type="text" id="search" name="search" value="{{ query.search or '' }}">
+        </div>
+        <div class="field" style="flex: 0 0 auto; align-self: flex-end;">
+          <div class="check" style="margin-bottom: 7px;">
+            <input type="checkbox" id="show_dupes" name="show_dupes" value="true"
+                   {{ 'checked' if not query.hide_duplicates }}>
+            <label for="show_dupes">Show duplicates</label>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div id="image-grid">
+      {% include "partials/image_grid.html" %}
+    </div>
+  </div>
+{% endblock %}

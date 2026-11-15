@@ -1,0 +1,230 @@
+<div id="render-body">
+  <div class="panel mb">
+    <h2>What would be delivered</h2>
+    <p>{{ summary }}</p>
+    <div class="grid grid-4 mt">
+      <div class="stat">
+        <div class="label">Planned length</div>
+        <div class="value">{{ plan.planned_duration_s | round(1) }}s</div>
+        <div class="hint">from the measured clips; target {{ project.target_duration_s }}s</div>
+      </div>
+      <div class="stat">
+        <div class="label">Generated motion</div>
+        <div class="value">{{ plan.generated_motion_s | round(1) }}s</div>
+        <div class="hint">animated by a model</div>
+      </div>
+      <div class="stat">
+        <div class="label">Camera moves</div>
+        <div class="value">{{ plan.camera_move_s | round(1) }}s</div>
+        <div class="hint">stills with the frame moving. Editing, not animation.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Subtitle cues</div>
+        <div class="value">{{ plan.sheet.count if plan.sheet else 0 }}</div>
+        <div class="hint">one per measured line</div>
+      </div>
+    </div>
+
+    <div class="mt">
+      <button class="primary" hx-post="/projects/{{ project.id }}/render"
+              hx-target="#render-body" hx-swap="outerHTML"
+              hx-indicator="#render-working"
+              {{ 'disabled' if not plan.ready }}>
+        Assemble and check
+      </button>
+      <span id="render-working" class="htmx-indicator small muted">
+        Encoding. A five-minute video takes a while on this machine.
+      </span>
+      <span class="small muted">Output frame {{ frame }} at {{ project.fps }} fps.</span>
+    </div>
+  </div>
+
+  {% if plan.problems %}
+    <div class="panel mb">
+      <h2>Why it cannot be assembled yet</h2>
+      <ul class="plain">
+        {% for item in plan.problems %}<li class="tiny">{{ item }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if plan.warnings %}
+    <div class="panel mb">
+      <h2>Worth knowing before you publish</h2>
+      <ul class="plain">
+        {% for item in plan.warnings %}<li class="tiny muted">{{ item }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if plan.sheet and plan.sheet.cues %}
+    <div class="panel mb">
+      <h2>Subtitles</h2>
+      <p class="small muted">
+        Every cue below starts and ends where its own audio file does, measured
+        with ffprobe. No alignment model and no estimate is involved.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Shot</th><th>In</th><th>Out</th><th>Line</th></tr></thead>
+          <tbody>
+            {% for cue in plan.sheet.cues %}
+              <tr>
+                <td class="tiny">{{ cue.index }}</td>
+                <td class="tiny muted">{{ cue.scene_key }}</td>
+                <td class="tiny">{{ cue.start_s | round(2) }}s</td>
+                <td class="tiny">{{ cue.end_s | round(2) }}s</td>
+                <td class="tiny">{{ cue.text }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% for gap in plan.sheet.gaps %}
+        <p class="tiny muted">{{ gap }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if publishable %}
+    {% set assets = publishable.publish_assets or {} %}
+    <div class="panel mb">
+      <h2>Upload assets</h2>
+      <p class="small muted">
+        Prepares a title, description, tags, a synthetic-content disclosure and
+        a thumbnail taken from the finished file, and writes them beside the
+        video. Nothing is uploaded, and nothing here can publish. You upload it
+        yourself when you have read it.
+      </p>
+      <div class="mt">
+        <button hx-post="/renders/{{ publishable.id }}/publish-assets"
+                hx-target="#render-body" hx-swap="outerHTML"
+                hx-indicator="#assets-working">
+          {{ 'Prepare again' if assets else 'Prepare upload assets' }}
+        </button>
+        <span id="assets-working" class="htmx-indicator small muted">
+          Taking a frame for the thumbnail.
+        </span>
+        {% if assets.get('manifest_path') %}
+          <a class="small" href="/renders/{{ publishable.id }}/publish-assets">
+            download publish.json
+          </a>
+        {% endif %}
+      </div>
+
+      {% if assets %}
+        <dl class="mt">
+          <dt class="tiny muted">Title ({{ assets.get('title', '') | length }} of 100)</dt>
+          <dd>{{ assets.get('title', '') }}</dd>
+          <dt class="tiny muted">Disclosure</dt>
+          <dd class="small">{{ assets.get('disclosure', '') }}</dd>
+          <dt class="tiny muted">Tags</dt>
+          <dd class="small">
+            {% for tag in assets.get('keywords', []) %}
+              <span class="badge">{{ tag }}</span>
+            {% else %}
+              <span class="muted">none</span>
+            {% endfor %}
+          </dd>
+          {% if assets.get('chapters') %}
+            <dt class="tiny muted">Chapters</dt>
+            <dd class="small">
+              {% for chapter in assets['chapters'] %}
+                <div>{{ (chapter['start_s'] // 60) | int }}:{{ '%02d' % ((chapter['start_s'] % 60) | int) }}
+                  {{ chapter['label'] }}</div>
+              {% endfor %}
+            </dd>
+          {% endif %}
+          <dt class="tiny muted">Description</dt>
+          <dd><pre class="tiny">{{ assets.get('description', '') }}</pre></dd>
+          {% if assets.get('thumbnail_path') %}
+            <dt class="tiny muted">Thumbnail</dt>
+            <dd class="tiny muted">
+              {{ assets['thumbnail_path'] }}
+              <div>A real frame of this file, not generated artwork.</div>
+            </dd>
+          {% endif %}
+        </dl>
+        {% for note in assets.get('notes', []) %}
+          <p class="tiny muted">{{ note }}</p>
+        {% endfor %}
+        <p class="tiny muted">Recorded as not published.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Renders</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>State</th><th class="right">Length</th>
+            <th class="right">Animated</th><th>Checks</th><th>Files</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in renders %}
+            <tr>
+              <td class="tiny">{{ item.id }}</td>
+              <td>
+                {% if item.status == 'completed' %}
+                  <span class="badge good">passed its checks</span>
+                {% elif item.status == 'failed' %}
+                  <span class="badge bad">failed</span>
+                {% else %}
+                  <span class="badge warn">{{ item.status }}</span>
+                {% endif %}
+                <div class="tiny muted">{{ item.stage_message or '' }}</div>
+              </td>
+              <td class="right tiny">
+                {% if item.duration_s %}{{ item.duration_s | round(2) }}s{% endif %}
+              </td>
+              <td class="right tiny">{{ item.generated_motion_s | round(1) }}s</td>
+              <td class="tiny muted">
+                {% set checks = item.validation or {} %}
+                {% if checks.get('failures') %}
+                  <ul class="plain">
+                    {% for failure in checks['failures'] %}<li>{{ failure }}</li>{% endfor %}
+                  </ul>
+                {% elif item.status == 'completed' %}
+                  {{ checks.get('measured_duration_s') }}s,
+                  {{ checks.get('width') }}x{{ checks.get('height') }},
+                  {{ checks.get('video_codec') }} {{ checks.get('pixel_format') }}
+                  {% if checks.get('av_offset_s') is not none %}
+                    , sound within {{ checks['av_offset_s'] }}s of the picture
+                  {% endif %}
+                  {% if checks.get('loudness_note') %}
+                    <div>{{ checks['loudness_note'] }}</div>
+                  {% endif %}
+                  {% if checks.get('black_runs') == [] %}
+                    <div>No black stretches found.</div>
+                  {% endif %}
+                {% endif %}
+                {% for note in checks.get('notes', []) %}
+                  <div>{{ note }}</div>
+                {% endfor %}
+                {% if item.error and not checks.get('failures') %}
+                  <div>{{ item.error }}</div>
+                {% endif %}
+              </td>
+              <td class="tiny">
+                {% if item.output_path %}
+                  <div class="muted">{{ item.output_path }}</div>
+                {% endif %}
+                {% if item.subtitle_path %}
+                  <a href="/renders/{{ item.id }}/subtitles">subtitles</a>
+                {% endif %}
+                {% if item.report_path %}
+                  <a href="/renders/{{ item.id }}/report">report</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="muted">Nothing has been rendered yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

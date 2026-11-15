@@ -1,0 +1,42 @@
+# Secrets - never commit
+.env
+.env.local
+*.key
+secrets.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Application data (lives on D: by default, but guard against local runs)
+data/
+*.db
+*.db-wal
+*.db-shm
+logs/
+thumbs/
+output/
+inbox/
+assemblies/
+diagnostics/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Rendered videos (generated output; GitHub rejects files over 100 MB)
+*.mp4
+*.mov
+*.mkv
+
+# Research scratch
+.firecrawl/

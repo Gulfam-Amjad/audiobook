@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI Video Generation Manager{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/alpine.min.js" defer></script>
+</head>
+<body hx-headers='{"X-AVM-Token": "{{ ui_token_hint }}"}'>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">AVM</span>
+      <span class="brand-text">Video Manager<small>v{{ app_version }}</small></span>
+    </div>
+    <div class="nav">
+      {% set current = request.url.path %}
+      {% for group in nav_groups %}
+        {% set ns = namespace(has_current=false) %}
+        {% for item in group['items'] %}
+          {% if current == item.href or (item.href != '/' and current.startswith(item.href)) %}{% set ns.has_current = true %}{% endif %}
+        {% endfor %}
+        <details class="nav-group"{% if not group.collapsed or ns.has_current %} open{% endif %}>
+          <summary>{{ group.label }}</summary>
+          <ul>
+            {% for item in group['items'] %}
+              <li>
+                <a href="{{ item.href }}" class="{{ 'active' if current == item.href or (item.href != '/' and current.startswith(item.href)) else '' }}">
+                  {{ item.label }}
+                  {% if item.badge %}<span class="nav-badge">{{ item.badge }}</span>{% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </details>
+      {% endfor %}
+    </div>
+    <div class="sidebar-foot">
+      <div class="muted small">Data root</div>
+      <div class="path small" title="{{ data_root }}">{{ data_root }}</div>
+    </div>
+  </nav>
+
+  <main class="content">
+    <header class="page-head">
+      <div>
+        <h1>{% block heading %}{% endblock %}</h1>
+        {% block subheading %}{% endblock %}
+      </div>
+      <div class="page-actions">{% block actions %}{% endblock %}</div>
+    </header>
+
+    {% if startup_problems %}
+      <div class="banner bad">
+        <strong>Startup problems</strong>
+        <ul>{% for problem in startup_problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+
+    <div id="queue-strip" hx-get="/partials/queue-strip" hx-trigger="load" hx-swap="outerHTML"></div>
+    <div id="flash"></div>
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script>
+  // Surface API errors instead of failing silently, and let any response
+  // carrying an X-AVM-Flash header show a message.
+  document.body.addEventListener('htmx:responseError', function (event) {
+    var flash = document.getElementById('flash');
+    var detail = event.detail.xhr.responseText || 'Request failed.';
+    try { detail = JSON.parse(detail).detail || detail; } catch (e) { /* plain text */ }
+    flash.innerHTML = '<div class="banner bad">' + escapeHtml(String(detail).slice(0, 500)) + '</div>';
+  });
+  document.body.addEventListener('htmx:afterRequest', function (event) {
+    var message = event.detail.xhr.getResponseHeader('X-AVM-Flash');
+    if (message) {
+      document.getElementById('flash').innerHTML =
+        '<div class="banner good">' + escapeHtml(message) + '</div>';
+    }
+  });
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  function copyText(id, button) {
+    var el = document.getElementById(id);
+    if (!el) { return; }
+    var text = el.value || el.textContent || '';
+    navigator.clipboard.writeText(text).then(function () {
+      var old = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(function () { button.textContent = old; }, 1500);
+    });
+  }
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

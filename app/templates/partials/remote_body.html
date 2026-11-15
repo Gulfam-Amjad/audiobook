@@ -1,0 +1,184 @@
+<div id="remote-body">
+  {% for note in notes %}
+    <div class="banner warn mb">{{ note }}</div>
+  {% endfor %}
+
+  <div class="panel mb">
+    <h2>Backends</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Backend</th><th>State</th><th>Does</th>
+            <th>Proven here?</th><th>What is known about its free tier</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for backend in backends %}
+            <tr>
+              <td class="tiny">
+                <strong>{{ backend.display_name }}</strong>
+                <div class="muted">checked {{ backend.checked_on }}</div>
+              </td>
+              <td>
+                {% if backend.configured %}
+                  <span class="badge good">configured</span>
+                {% else %}
+                  <span class="badge">off</span>
+                  <div class="tiny muted">needs {{ backend.missing | join(', ') }}</div>
+                {% endif %}
+              </td>
+              <td class="tiny muted">{{ backend.purposes | join(', ') }}</td>
+              <td class="tiny">
+                {% if backend.live_verified %}
+                  <span class="badge good">a real call has succeeded</span>
+                {% elif backend.endpoint_verified %}
+                  <span class="badge warn">built to the published API, never called</span>
+                {% else %}
+                  <span class="badge bad">unverified</span>
+                {% endif %}
+              </td>
+              <td class="tiny muted">
+                {{ backend.free_tier_note }}
+                {% if backend.docs_url %}
+                  <div><a href="{{ backend.docs_url }}" target="_blank" rel="noreferrer">API docs</a></div>
+                {% endif %}
+              </td>
+            </tr>
+            {% if backend.notes %}
+              <tr>
+                <td colspan="5" class="tiny muted">
+                  <ul class="plain">
+                    {% for item in backend.notes %}<li>{{ item }}</li>{% endfor %}
+                  </ul>
+                </td>
+              </tr>
+            {% endif %}
+          {% else %}
+            <tr><td colspan="5" class="muted">No backend is available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if plan %}
+    <div class="panel mb">
+      <h2>The next batch</h2>
+      {% if plan.blocked_reason %}
+        <div class="banner warn"><strong>Nothing to send.</strong> {{ plan.blocked_reason }}</div>
+      {% else %}
+        <p>
+          {{ plan.shots | length }} shot(s) would go to
+          <strong>{{ plan.backend }}</strong>, asking for
+          {{ plan.shots | sum(attribute='duration_s') | round(1) }}s of animation.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Shot</th><th>Still</th><th class="right">Length</th><th>Prompt</th></tr></thead>
+            <tbody>
+              {% for shot in plan.shots %}
+                <tr>
+                  <td class="tiny">{{ shot.scene_key }}</td>
+                  <td class="tiny muted">{{ shot.image }}</td>
+                  <td class="right tiny">{{ shot.duration_s }}s</td>
+                  <td class="tiny muted">{{ shot.prompt or '—' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt">
+          <form hx-post="/projects/{{ project_id }}/remote/submit"
+                hx-target="#remote-body" hx-swap="outerHTML">
+            <input type="hidden" name="purpose" value="{{ plan.purpose }}">
+            <button class="primary" type="submit">Send this batch</button>
+          </form>
+        </div>
+      {% endif %}
+      {% for item in plan.skipped %}
+        <p class="tiny muted">Held back — {{ item }}</p>
+      {% endfor %}
+      {% for item in plan.notes %}
+        <p class="tiny muted">{{ item }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Runs</h2>
+    {% if live_count %}
+      <p class="small muted">
+        {{ live_count }} run(s) are still out. They are polled, never sent again:
+        a duplicate submission would spend the free allowance twice for one result.
+      </p>
+    {% endif %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Backend</th><th>Purpose</th><th>Shots</th>
+            <th>State</th><th>Elapsed</th><th>What happened</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+            <tr>
+              <td class="tiny">
+                {{ task.id }}
+                <div class="muted">{{ task.client_token[:12] }}</div>
+              </td>
+              <td class="tiny">
+                {{ task.backend }}
+                {% if task.ref %}<div class="muted">{{ task.ref }}</div>{% endif %}
+              </td>
+              <td class="tiny muted">{{ task.purpose }}</td>
+              <td class="tiny">{{ (task.payload or {}).get('shots', []) | length }}</td>
+              <td>
+                {% if task.status == 'completed' %}
+                  <span class="badge good">completed</span>
+                {% elif task.status == 'failed' %}
+                  <span class="badge bad">failed</span>
+                {% elif task.status == 'uncertain' %}
+                  <span class="badge warn">outcome unknown</span>
+                {% elif task.status == 'cancelled' %}
+                  <span class="badge">cancelled</span>
+                {% else %}
+                  <span class="badge warn">{{ task.status }}</span>
+                {% endif %}
+                {% if task.attempts and task.attempts > 1 %}
+                  <div class="tiny muted">attempt {{ task.attempts }}</div>
+                {% endif %}
+              </td>
+              <td class="tiny muted">
+                {% if task.gpu_seconds %}{{ (task.gpu_seconds / 60) | round(1) }} min{% endif %}
+              </td>
+              <td class="tiny muted">
+                {{ task.message or task.last_error or '' }}
+                {% if task.artifacts %}
+                  <div>{{ task.artifacts | length }} file(s) brought back</div>
+                {% endif %}
+              </td>
+              <td class="tiny">
+                {% if task.status in ('queued', 'running', 'submitting', 'uncertain') %}
+                  <button class="small" hx-post="/remote/{{ task.id }}/poll"
+                          hx-target="#remote-body" hx-swap="outerHTML">Check</button>
+                  <button class="small" hx-post="/remote/{{ task.id }}/cancel"
+                          hx-target="#remote-body" hx-swap="outerHTML">Cancel</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8" class="muted">Nothing has been sent yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny muted">
+      A clip only counts as generated motion when the run's own manifest says a
+      model produced it and ffprobe can measure the file that came back. Anything
+      else is reported as a failed shot and falls back to a camera move, which is
+      labelled as editing on the Shots screen.
+    </p>
+  </div>
+</div>

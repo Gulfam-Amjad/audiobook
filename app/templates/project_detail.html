@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} - AI Video Generation Manager{% endblock %}
+{% block heading %}{{ project.name }}{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Target {{ (project.target_duration_s / 60) | round(1) }} minutes at
+    {{ frame_width }}x{{ frame_height }}, {{ project.fps }} fps.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/projects/{{ project.id }}/script" class="button primary">Script</a>
+  <a href="/projects/{{ project.id }}/voice" class="button">Narration</a>
+  <a href="/projects/{{ project.id }}/shots" class="button">Shots</a>
+  <a href="/projects/{{ project.id }}/render" class="button">Render</a>
+  <a href="/projects" class="button">All projects</a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/project_detail_body.html" %}
+{% endblock %}

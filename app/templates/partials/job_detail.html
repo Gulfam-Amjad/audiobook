@@ -1,0 +1,103 @@
+<div class="panel">
+  <div class="spread mb">
+    <h2 style="margin:0">Job #{{ job.id }}</h2>
+    <span class="badge {{ job.status | tone }}">{{ job.status | pretty_status }}</span>
+  </div>
+
+  <div class="grid grid-3 mb">
+    <div>
+      <div class="muted tiny">Source image</div>
+      <div class="small truncate" title="{{ image.path if image else '' }}">
+        {{ image.filename if image else 'missing' }}
+      </div>
+    </div>
+    <div>
+      <div class="muted tiny">Provider / account</div>
+      <div class="small">
+        {{ provider.display_name if provider else 'not yet chosen' }}
+        {% if account %}/ {{ account.label }}{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="muted tiny">Settings</div>
+      <div class="small mono">
+        {{ settings.model_id or 'auto' }} &middot; {{ settings.duration_s }}s &middot;
+        {{ settings.resolution }} &middot; {{ settings.aspect_ratio }}
+      </div>
+    </div>
+    <div>
+      <div class="muted tiny">Estimated cost</div>
+      <div class="small">
+        {{ job.cost_estimate_usd | usd }}
+        {% if job.cost_estimate_units %}
+          ({{ job.cost_estimate_units | number(2) }} {{ job.cost_estimate_unit }})
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="muted tiny">Provider task</div>
+      <div class="small mono">{{ job.task_ref or '-' }}</div>
+    </div>
+    <div>
+      <div class="muted tiny">Match code (manual assist)</div>
+      <div class="small mono">{{ job.manual_token or '-' }}</div>
+    </div>
+  </div>
+
+  <div class="mb">
+    <div class="muted tiny">Prompt</div>
+    <p class="small mono" style="margin:3px 0 0">{{ job.prompt }}</p>
+    {% if job.negative_prompt %}
+      <div class="muted tiny mt">Negative</div>
+      <p class="small mono" style="margin:3px 0 0">{{ job.negative_prompt }}</p>
+    {% endif %}
+  </div>
+
+  {% if output %}
+    <div class="panel panel-tight" style="background: var(--panel-2);">
+      <h3>Output</h3>
+      <div class="grid grid-3">
+        <div><div class="muted tiny">Measured duration</div>
+          <div class="small">{{ output.duration_s | duration }}</div></div>
+        <div><div class="muted tiny">Dimensions</div>
+          <div class="small">{{ output.width or '?' }}&times;{{ output.height or '?' }}</div></div>
+        <div><div class="muted tiny">Size</div>
+          <div class="small">{{ output.file_size | filesize }}</div></div>
+      </div>
+      <div class="muted tiny mt truncate" title="{{ output.file_path }}">{{ output.file_path }}</div>
+      {% if output.probe_error %}
+        <div class="banner warn" style="margin:8px 0 0">{{ output.probe_error }}</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if entitlements %}
+    <details class="mt">
+      <summary>Account allowance at a glance</summary>
+      <ul class="small" style="padding-left:18px">
+        {% for row in entitlements %}
+          <li>
+            {{ row.name }}: {{ balance_label(row.source, row.balance, row.unit) }}
+            {% if row.next_reset_at %}&middot; resets {{ row.next_reset_at | when }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+
+  <h3 class="mt">History</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Event</th><th>Message</th></tr></thead>
+      <tbody>
+        {% for event in events %}
+          <tr>
+            <td class="tiny muted nowrap">{{ event.ts.strftime('%H:%M:%S') }}</td>
+            <td class="tiny mono">{{ event.event }}</td>
+            <td class="small">{{ event.message or '' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,197 @@
+<div id="script-body">
+  <div class="panel mb">
+    <h2>Write a new version</h2>
+    <p class="small muted">
+      {{ image_count }} still(s) available to this project. The writer picks
+      from their filenames; it never sees the pictures themselves.
+    </p>
+
+    <form hx-post="/projects/{{ project.id }}/script/generate"
+          hx-target="#script-body" hx-swap="outerHTML">
+      <div class="grid grid-2">
+        <label>
+          Writer
+          <select name="provider_key">
+            {% for provider in providers %}
+              <option value="{{ provider.key }}"
+                      {{ 'selected' if provider.key == default_provider }}
+                      {{ 'disabled' if not provider.automated }}>
+                {{ provider.display_name }}{% if not provider.automated %} (paste below instead){% elif not provider.configured %} (no key){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Model
+          <select name="model_id">
+            {% for provider in providers %}
+              {% if provider.key == default_provider %}
+                {% for model in provider.models %}
+                  <option value="{{ model }}" {{ 'selected' if model == provider.default_model }}>{{ model }}</option>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <button type="submit" class="primary">Generate scene plan</button>
+    </form>
+
+    {% for provider in providers %}
+      {% if provider.automated and not provider.configured %}
+        <div class="banner warn mt">
+          <strong>{{ provider.display_name }} has no key.</strong>
+          {{ provider.free_tier_note }}
+          {% if provider.signup_url %}
+            <a href="{{ provider.signup_url }}" target="_blank" rel="noopener">Get a key</a>
+            and put it in <code>.env</code> as <code>AVM_GEMINI_API_KEY</code>, then restart.
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="panel mb" x-data="{ open: false }">
+    <h2>Or run the prompt yourself</h2>
+    <p class="small muted">
+      Costs nothing and needs no key. Copy this into any assistant, then paste
+      the JSON back. It is validated exactly as strictly as an API reply.
+    </p>
+    <button type="button" class="small" @click="open = !open"
+            x-text="open ? 'Hide the prompt' : 'Show the prompt'">Show the prompt</button>
+    <div x-show="open" x-cloak class="mt">
+      <textarea rows="14" readonly class="mono">{{ prompt }}</textarea>
+    </div>
+    <form hx-post="/projects/{{ project.id }}/script/paste"
+          hx-target="#script-body" hx-swap="outerHTML" class="mt">
+      <label>
+        Paste the JSON reply
+        <textarea name="pasted" rows="6" class="mono"
+                  placeholder='{"title": "...", "logline": "...", "scenes": [...]}'></textarea>
+      </label>
+      <button type="submit">Validate and store</button>
+    </form>
+  </div>
+
+  {% if script %}
+    <div class="panel mb">
+      <h2>
+        Version {{ script.version }}
+        {% if script.is_valid %}<span class="badge good">valid</span>{% else %}<span class="badge bad">not valid</span>{% endif %}
+        {% if script.approved %}<span class="badge good">approved</span>{% else %}<span class="badge warn">not approved</span>{% endif %}
+      </h2>
+      <p><strong>{{ script.title or 'Untitled' }}</strong></p>
+      {% if script.logline %}<p class="small">{{ script.logline }}</p>{% endif %}
+      {% if script.synopsis %}<p class="small muted">{{ script.synopsis }}</p>{% endif %}
+
+      <div class="grid grid-4 mt">
+        <div class="stat">
+          <div class="label">Shots</div>
+          <div class="value">{{ validation.get('scene_count', 0) }}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Planned length</div>
+          <div class="value">{{ validation.get('planned_duration_s', 0) | round(0) | int }}s</div>
+          <div class="hint">target {{ project.target_duration_s }}s</div>
+        </div>
+        <div class="stat">
+          <div class="label">Speech estimate</div>
+          <div class="value">{{ validation.get('estimated_duration_s', 0) | round(0) | int }}s</div>
+          <div class="hint">{{ script.word_count }} words at {{ project.speaking_rate_wpm }} wpm, not measured audio</div>
+        </div>
+        <div class="stat">
+          <div class="label">Motion requested</div>
+          <div class="value">{{ validation.get('generated_motion_requested_s', 0) | round(0) | int }}s</div>
+          <div class="hint">budget {{ project.max_generated_motion_s | round(0) | int }}s</div>
+        </div>
+      </div>
+
+      {% if validation.get('errors') %}
+        <div class="banner bad mt">
+          <strong>This version cannot be approved.</strong>
+          <ul>{% for problem in validation['errors'] %}<li>{{ problem }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+      {% if validation.get('warnings') %}
+        <div class="banner warn mt">
+          <strong>Worth a look, but not blocking.</strong>
+          <ul>{% for problem in validation['warnings'] %}<li>{{ problem }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+
+      <div class="mt">
+        {% if script.approved %}
+          <button class="danger" hx-post="/scripts/{{ script.id }}/unapprove"
+                  hx-target="#script-body" hx-swap="outerHTML">Withdraw approval</button>
+        {% elif script.is_valid %}
+          <button class="primary" hx-post="/scripts/{{ script.id }}/approve"
+                  hx-target="#script-body" hx-swap="outerHTML">Approve this version</button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if scenes %}
+      <div class="panel mb">
+        <h2>Shots</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Purpose</th><th class="right">Target</th>
+                <th>Speech</th><th>Still</th><th>Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for scene in scenes %}
+                <tr>
+                  <td>{{ scene.order_index + 1 }}<div class="tiny muted">{{ scene.scene_key }}</div></td>
+                  <td class="tiny">
+                    {{ scene.purpose or '' }}
+                    {% if scene.camera %}<div class="muted">camera: {{ scene.camera }}</div>{% endif %}
+                  </td>
+                  <td class="right">{{ scene.target_duration_s | round(1) }}s</td>
+                  <td class="tiny">
+                    {% if scene.narration %}{{ scene.narration }}{% endif %}
+                    {% for line in scene.dialogue %}
+                      <div><strong>{{ line.character }}:</strong> {{ line.line }}</div>
+                    {% endfor %}
+                  </td>
+                  <td class="tiny">{{ scene.image.filename if scene.image else 'none chosen' }}</td>
+                  <td class="tiny">{{ scene.preferred_method or '' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+
+  {% if versions | length > 1 %}
+    <div class="panel">
+      <h2>Earlier versions</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Version</th><th>Writer</th><th>Title</th><th>Valid</th><th>Problems</th></tr>
+          </thead>
+          <tbody>
+            {% for version in versions %}
+              <tr>
+                <td>v{{ version.version }}</td>
+                <td class="tiny">{{ version.provider_key or '' }}{% if version.model_id %} / {{ version.model_id }}{% endif %}</td>
+                <td class="tiny">{{ version.title or 'Untitled' }}</td>
+                <td>{% if version.is_valid %}<span class="badge good">yes</span>{% else %}<span class="badge bad">no</span>{% endif %}</td>
+                <td class="right">{{ (version.validation.get('errors') or []) | length }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="tiny muted">
+        Rejected versions are kept. Their problems are fed back into the next
+        attempt so the writer corrects them instead of repeating them.
+      </p>
+    </div>
+  {% endif %}
+</div>

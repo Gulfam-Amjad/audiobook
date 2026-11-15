@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Files - AI Video Generation Manager{% endblock %}
+{% block heading %}Files{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Every finished audiobook and film, with the folder path, a player, and a download.
+  </p>
+{% endblock %}
+{% block actions %}
+  <button hx-get="/partials/files" hx-target="#files-body" hx-swap="outerHTML">Refresh</button>
+  <button hx-post="/files/open" hx-vals='{"path": ""}' hx-swap="none">Open data folder</button>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/files_body.html" %}
+{% endblock %}

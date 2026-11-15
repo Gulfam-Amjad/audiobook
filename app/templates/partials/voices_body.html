@@ -1,0 +1,241 @@
+<div id="voices-body">
+  <div class="panel mb">
+    <h2>The engine</h2>
+    {% if piper.available %}
+      <p><span class="badge good">installed</span> <code>{{ piper.exe_path }}</code></p>
+      <p class="small muted">Found via {{ piper.source }}. {{ piper.version or '' }}</p>
+    {% else %}
+      <div class="banner warn">
+        <strong>Piper is not installed.</strong> {{ piper.message }}
+      </div>
+      <form hx-post="/voices/engine/install" hx-target="#voices-body" hx-swap="outerHTML" class="mt">
+        <button type="submit" class="primary">Download and install Piper</button>
+        <span class="small muted">
+          About 21 MB from the pinned release, unpacked into
+          <code>{{ instructions.target }}</code>.
+        </span>
+      </form>
+      <details class="mt">
+        <summary class="small">Install it by hand instead</summary>
+        <p class="small muted">{{ instructions.note }}</p>
+        <p class="small">
+          <a href="{{ instructions.engine_url }}" target="_blank" rel="noopener">Release page</a>
+          &middot;
+          <a href="{{ instructions.voices_url }}" target="_blank" rel="noopener">Voice repository</a>
+        </p>
+      </details>
+    {% endif %}
+
+    {% for row in engine %}
+      <p class="tiny muted">
+        Engine licence: {{ row.licence }}. {{ row.licence_note }}
+      </p>
+    {% endfor %}
+  </div>
+
+  {% if licence_warnings %}
+    <div class="banner warn mb">
+      <strong>What these voices permit.</strong>
+      <ul>{% for note in licence_warnings %}<li>{{ note }}</li>{% endfor %}</ul>
+      <p class="tiny">
+        Taken from each voice's own model card. A licence this app does not
+        recognise is reported as unknown rather than assumed to be fine.
+      </p>
+    </div>
+  {% endif %}
+
+  <div class="panel mb">
+    <h2>Installed voices</h2>
+    {% if voices %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Language</th><th>Licence</th>
+              <th>Commercial use</th><th>Measured pace</th><th>Speed</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for voice in voices %}
+              <tr>
+                <td>
+                  {{ voice.name }}
+                  {% if voice.is_default %}<span class="badge good">default</span>{% endif %}
+                  {% if voice.speaker_id is not none %}
+                    <div class="tiny muted">speaker {{ voice.speaker_id }}</div>
+                  {% endif %}
+                </td>
+                <td class="tiny">{{ voice.language }}</td>
+                <td class="tiny">
+                  {{ voice.licence or 'not stated' }}
+                  {% if voice.licence_url %}
+                    <div><a href="{{ voice.licence_url }}" target="_blank" rel="noopener">source</a></div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if voice.commercial_use == 'allowed' %}
+                    <span class="badge good">allowed</span>
+                  {% elif voice.commercial_use == 'conditional' %}
+                    <span class="badge warn">with attribution</span>
+                  {% elif voice.commercial_use == 'restricted' %}
+                    <span class="badge bad">non-commercial</span>
+                  {% else %}
+                    <span class="badge">unknown</span>
+                  {% endif %}
+                  {% if voice.notes %}<div class="tiny muted">{{ voice.notes }}</div>{% endif %}
+                </td>
+                <td class="tiny">
+                  {% if voice.measured_wpm %}
+                    {{ voice.measured_wpm | round(0) | int }} wpm
+                    <div class="muted">
+                      from {{ voice.measured_segments }} recorded line(s);
+                      scripts are written to this
+                    </div>
+                  {% else %}
+                    <span class="muted">not measured yet</span>
+                    <div class="muted">
+                      {{ voice.measured_segments }} of
+                      {{ min_rate_samples }} line(s) needed
+                    </div>
+                  {% endif %}
+                </td>
+                <td class="tiny">
+                  <form hx-post="/voices/{{ voice.id }}" hx-target="#voices-body" hx-swap="outerHTML">
+                    <input type="number" name="length_scale" step="0.05" min="0.3" max="3.0"
+                           value="{{ voice.length_scale }}" style="width: 5rem">
+                    <button type="submit" class="small">Save</button>
+                  </form>
+                  <div class="muted">higher is slower</div>
+                </td>
+                <td class="right">
+                  {% if not voice.is_default %}
+                    <button class="small" hx-post="/voices/{{ voice.id }}/default"
+                            hx-target="#voices-body" hx-swap="outerHTML">Make default</button>
+                  {% endif %}
+                  <button class="small danger" hx-post="/voices/{{ voice.id }}/delete"
+                          hx-target="#voices-body" hx-swap="outerHTML"
+                          hx-confirm="Forget {{ voice.name }}? The downloaded files stay on disk.">
+                    Forget
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">No voices installed yet. Pick one below.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Available to install</h2>
+    <p class="small muted">
+      Downloaded into <code>{{ voices_dir }}</code>, which is on D: because a
+      voice is roughly 60&nbsp;MB and C: has very little room. The licence
+      column fills in after install, from the file the download brings with it.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Voice</th><th>Language</th><th class="right">Size</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in catalogue %}
+            <tr>
+              <td>
+                {{ row.voice.display_name }}
+                <div class="tiny muted">{{ row.voice.summary }}</div>
+                <div class="tiny">
+                  <a href="{{ row.voice.page_url }}" target="_blank" rel="noopener">model card</a>
+                </div>
+              </td>
+              <td class="tiny">{{ row.voice.language }}</td>
+              <td class="right tiny">{{ row.approx_mb }} MB</td>
+              <td class="right">
+                {% if row.installed %}
+                  <span class="badge good">installed</span>
+                {% elif piper.available %}
+                  <form hx-post="/voices/install" hx-target="#voices-body" hx-swap="outerHTML">
+                    <input type="hidden" name="key" value="{{ row.voice.key }}">
+                    <button type="submit" class="small">Install</button>
+                  </form>
+                {% else %}
+                  <span class="tiny muted">install the engine first</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel mb">
+    <h2>Kokoro voices (offline, Apache-2.0)</h2>
+    {% if kokoro.ready %}
+      <p class="small muted">
+        Model files found in <code>{{ kokoro.folder }}</code>. Installing a voice
+        records it from those files, so nothing is downloaded here.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            {% for row in kokoro.voices %}
+              <tr>
+                <td>{{ row.key }}</td>
+                <td class="tiny">{{ row.language }}</td>
+                <td class="right">
+                  {% if row.installed %}
+                    <span class="badge good">installed</span>
+                  {% else %}
+                    <form hx-post="/voices/install-kokoro" hx-target="#voices-body" hx-swap="outerHTML">
+                      <input type="hidden" name="key" value="{{ row.key }}">
+                      <button type="submit" class="small">Install</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">
+        Kokoro's model files are not in <code>{{ kokoro.folder }}</code>. Put
+        <code>kokoro-v1.0.onnx</code> and <code>voices-v1.0.bin</code> there, then reload.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="panel mb">
+    <h2>Microsoft online voices (Hindi and Urdu)</h2>
+    <div class="banner warn mb">
+      These voices are generated by Microsoft's online service, so narration
+      needs an internet connection. The terms were not checked here, so commercial
+      use is reported as unknown. Nothing is downloaded.
+    </div>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          {% for row in edge.voices %}
+            <tr>
+              <td>{{ row.key }}</td>
+              <td class="tiny">{{ row.language }}</td>
+              <td class="right">
+                {% if row.installed %}
+                  <span class="badge good">installed</span>
+                {% else %}
+                  <form hx-post="/voices/install-edge" hx-target="#voices-body" hx-swap="outerHTML">
+                    <input type="hidden" name="key" value="{{ row.key }}">
+                    <button type="submit" class="small">Add</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,14 @@
+<span id="bv-voice-status" class="small"
+      {% if voice_status.running %}hx-get="/partials/book-video/voice-status" hx-trigger="every 4s" hx-swap="outerHTML"{% endif %}>
+  {% if voice_status.running %}
+    <span class="badge busy">Making demos {{ voice_status.done }} of {{ voice_status.total }}{% if voice_status.current %}: {{ voice_status.current }}{% endif %}</span>
+    <span class="tiny muted">Reload the page when it finishes to hear them.</span>
+  {% elif voice_status.missing %}
+    <button type="button" class="small" hx-post="/book-video/voice-demos" hx-target="#bv-voice-status" hx-swap="outerHTML">
+      Make the {{ voice_status.missing }} missing demos
+    </button>
+    {% if voice_status.errors %}<span class="tiny muted" title="{{ voice_status.errors | join('\n') }}">{{ voice_status.errors | length }} failed</span>{% endif %}
+  {% else %}
+    <span class="badge good">every voice has a demo</span>
+  {% endif %}
+</span>

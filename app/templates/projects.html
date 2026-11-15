@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Projects - AI Video Generation Manager{% endblock %}
+{% block heading %}Projects{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    One project is one video. It owns its own script, voices, scenes and
+    render, so two projects never share settings or spend each other's budget.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div class="panel mb">
+    <h2>New project</h2>
+    <form hx-post="/projects" hx-target="#project-list" hx-swap="outerHTML">
+      <div class="grid grid-2">
+        <label>
+          Name
+          <input type="text" name="name" required maxlength="200" placeholder="Monday folk tale">
+        </label>
+        <label>
+          Niche
+          <input type="text" name="niche" maxlength="200" placeholder="Illustrated folklore">
+        </label>
+        <label>
+          Audience
+          <input type="text" name="audience" maxlength="200" placeholder="Adults who like quiet stories">
+        </label>
+        <label>
+          Storytelling style
+          <input type="text" name="story_style" maxlength="200" placeholder="Slow, warm, a twist at the end">
+        </label>
+        <label>
+          Target length (seconds)
+          <input type="number" name="target_duration_s" value="300" min="15" max="1800" step="5">
+        </label>
+        <label>
+          Language
+          <input type="text" name="language" value="en" maxlength="16">
+        </label>
+        <label>
+          Aspect ratio
+          <select name="aspect_ratio">
+            {% for ratio in aspect_ratios %}
+              <option value="{{ ratio }}" {{ 'selected' if ratio == '16:9' }}>{{ ratio }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Resolution
+          <select name="resolution">
+            {% for res in resolutions %}
+              <option value="{{ res }}" {{ 'selected' if res == '720p' }}>{{ res }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Frame rate
+          <select name="fps">
+            {% for rate in frame_rates %}
+              <option value="{{ rate }}" {{ 'selected' if rate == 24 }}>{{ rate }} fps</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Image folder
+          <select name="image_folder_id">
+            <option value="">Any folder in the library</option>
+            {% for folder in folders %}
+              <option value="{{ folder.id }}">{{ folder.path }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label>
+        Brief (optional)
+        <textarea name="brief" rows="3"
+                  placeholder="Anything the script should honour: a theme, a character, a moral, a setting."></textarea>
+      </label>
+      <button type="submit" class="primary">Create project</button>
+      <p class="tiny muted">
+        Creating a project generates nothing and spends nothing. Every stage is
+        started by you from the project page.
+      </p>
+    </form>
+  </div>
+
+  {% include "partials/project_list.html" %}
+{% endblock %}

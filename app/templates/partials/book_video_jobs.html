@@ -1,0 +1,192 @@
+{% set active = summary.running or summary.waiting %}
+<div id="bv-jobs" class="panel mb"
+     {% if active %}hx-get="/partials/book-video/jobs" hx-trigger="every 5s" hx-swap="outerHTML"{% endif %}>
+  {% if summary.running %}
+    {% set now = summary.running %}
+    {% set p = now.progress %}
+    <div class="bv-now">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <span class="badge busy">Working now</span>
+          <b>{{ now.title }}</b>
+          {% if now.preview %}<span class="badge info">preview</span>{% endif %}
+        </div>
+        <div class="row">
+          {% if now.folder_rel %}
+            <button type="button" class="small" hx-post="/files/open" hx-vals='{{ {"path": now.folder_rel} | tojson }}' hx-swap="none">Open folder</button>
+          {% endif %}
+          <button type="button" class="small" hx-post="/book-video/jobs/{{ now.id | urlencode }}/cancel"
+                  hx-target="#bv-jobs" hx-swap="outerHTML" hx-confirm="Stop this book? Finished chapters are kept.">Stop</button>
+        </div>
+      </div>
+      {% if p %}
+        <div class="bv-percent">{{ p.percent }}%</div>
+        <div class="bar"><span style="width: {{ p.percent }}%"></span></div>
+        <p class="small">
+          {{ p.label }}{% if p.detail %}: {{ p.detail }}{% endif %}
+          {% if now.left %} · about {{ now.left }} left{% endif %}
+          {% if now.elapsed %} · running {{ now.elapsed }}{% endif %}
+        </p>
+      {% else %}
+        <p class="small">Starting. The first progress line appears in a few seconds.</p>
+      {% endif %}
+      {% if now.folder %}
+        <div class="row small">
+          <code class="bv-path" id="now-path">{{ now.folder }}</code>
+          <button type="button" class="small" onclick="copyText('now-path', this)">Copy path</button>
+        </div>
+      {% endif %}
+      {% if summary.total_left %}
+        <p class="small"><b>Whole queue:</b> {{ summary.waiting }} more book{{ '' if summary.waiting == 1 else 's' }} waiting
+          · about {{ summary.total_left }} of work left
+          · everything ready around <b>{{ summary.finish_at }}</b>{% if not summary.estimate_complete %} (one book has no estimate yet){% endif %}.</p>
+      {% endif %}
+      <p class="tiny muted">The MP4 is written in that folder when the voice, the captions, and the picture are all finished. Times are estimates from this laptop's measured speed. This box refreshes every 5 seconds.</p>
+    </div>
+  {% endif %}
+
+  <div class="row" style="justify-content:space-between">
+    <h2>Jobs</h2>
+    <div class="row small">
+      {% if summary.books_rel %}
+        <button type="button" class="small" hx-post="/files/open" hx-vals='{{ {"path": summary.books_rel} | tojson }}' hx-swap="none">Open audiobooks folder</button>
+      {% endif %}
+      <span class="badge {{ 'bad' if disk.low else 'neutral' }}">{{ disk.free_gb }} GB free on {{ disk.drive }}</span>
+      {% if disk.work_gb > 0.01 %}
+        <span class="muted">{{ disk.work_gb }} GB of working files</span>
+        <button type="button" class="small" hx-post="/book-video/clean" hx-target="#bv-jobs" hx-swap="outerHTML"
+                hx-confirm="Delete the WAVs and video segments of every book not in the queue? Finished videos stay.">
+          Clean up</button>
+      {% endif %}
+      {% if summary.waiting and not summary.runner %}
+        <button type="button" class="small primary" hx-post="/book-video/runner" hx-target="#bv-jobs" hx-swap="outerHTML">
+          Continue from the last chapter</button>
+      {% elif summary.runner %}
+        <span class="badge busy">queue running</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if disk.low %}
+    <div class="banner bad small">Less than 3 GB free. A long book needs room for its WAVs and video segments; clean up or free space first.</div>
+  {% endif %}
+
+  {% if not jobs %}
+    <p class="muted small">No books yet. Fill in the form above and press Make Video.</p>
+  {% endif %}
+
+  {% for job in jobs %}
+    {% set p = job.progress %}
+    <div class="bv-job">
+      <div class="row" style="justify-content:space-between">
+        <div class="row">
+          <b>{{ job.title }}</b>
+          {% if job.preview %}<span class="badge info">preview</span>{% endif %}
+          {% if job.state == 'running' %}<span class="badge busy">running</span>
+          {% elif job.state == 'waiting' %}<span class="badge neutral">waiting</span>
+          {% elif job.state == 'done' %}<span class="badge good">ready</span>
+          {% elif job.state == 'failed' %}<span class="badge bad">failed</span>
+          {% else %}<span class="badge warn">cancelled</span>{% endif %}
+          {% if job.attempts and job.attempts > 1 %}<span class="tiny muted">attempt {{ job.attempts }}</span>{% endif %}
+        </div>
+        <div class="row">
+          {% if job.state in ('running', 'waiting') %}
+            <button type="button" class="small" hx-post="/book-video/jobs/{{ job.id | urlencode }}/cancel"
+                    hx-target="#bv-jobs" hx-swap="outerHTML" hx-confirm="Stop this book? Its finished work is kept.">Cancel</button>
+          {% else %}
+            {% if job.state in ('failed', 'cancelled') %}
+              <button type="button" class="small primary" hx-post="/book-video/jobs/{{ job.id | urlencode }}/resume"
+                      hx-target="#bv-jobs" hx-swap="outerHTML">{{ 'Retry' if job.state == 'failed' else 'Resume' }}</button>
+            {% endif %}
+            {% if job.work_mb %}
+              <button type="button" class="small" hx-post="/book-video/jobs/{{ job.id | urlencode }}/clean"
+                      hx-target="#bv-jobs" hx-swap="outerHTML">Free {{ job.work_mb }} MB</button>
+            {% endif %}
+            <button type="button" class="small" hx-post="/book-video/jobs/{{ job.id | urlencode }}/remove"
+                    hx-target="#bv-jobs" hx-swap="outerHTML">Remove</button>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if p and job.state in ('running', 'waiting', 'failed', 'cancelled') and p.stage != 'done' %}
+        <div class="bar {{ 'warn' if job.state != 'running' else '' }}"><span style="width: {{ p.percent }}%"></span></div>
+        <div class="small">
+          {{ p.percent }}% · {{ p.label }}{% if p.detail %}: {{ p.detail }}{% endif %}
+          {% if job.state == 'running' and job.left %} · about {{ job.left }} left{% endif %}
+          {% if job.elapsed %} · running {{ job.elapsed }}{% endif %}
+          {% if job.state == 'waiting' %} · waiting for its turn{% endif %}
+        </div>
+      {% elif job.state == 'waiting' %}
+        <div class="tiny muted">Waiting for its turn{% if summary.running %} after {{ summary.running.title }}{% endif %}.</div>
+      {% endif %}
+      {% if job.state == 'waiting' and job.work %}
+        <div class="small">About {{ job.work }} of work{% if job.ready_at %} · ready around <b>{{ job.ready_at }}</b>{% endif %}</div>
+      {% elif job.state == 'running' and job.ready_at %}
+        <div class="small">Ready around <b>{{ job.ready_at }}</b></div>
+      {% endif %}
+      {% if job.folder %}
+        <div class="row small">
+          <code class="bv-path" id="path-{{ job.id }}">{{ job.folder }}</code>
+          <button type="button" class="small" onclick="copyText('path-{{ job.id }}', this)">Copy path</button>
+          {% if job.folder_rel %}
+            <button type="button" class="small" hx-post="/files/open" hx-vals='{{ {"path": job.folder_rel} | tojson }}' hx-swap="none">Open folder</button>
+          {% endif %}
+        </div>
+      {% endif %}
+      {% if job.chapters_total %}
+        <p class="small">{{ job.chapters_done }} of {{ job.chapters_total }} chapters recorded.
+          {% if job.state != 'running' and job.chapters_done < job.chapters_total %}
+            The next run starts at chapter {{ job.chapters_done + 1 }}.
+          {% endif %}
+        </p>
+      {% endif %}
+      {% if job.playable %}
+        <div class="small">
+          Listen to what is already spoken (chapter {{ job.playable | length }}):
+          <audio controls preload="none" src="/files/media?path={{ job.playable[-1] | urlencode }}"></audio>
+        </div>
+      {% endif %}
+      {% if job.error and job.state != 'done' %}
+        <div class="tiny {{ 'bad' if job.state == 'failed' else 'muted' }}">{{ job.error }}</div>
+      {% endif %}
+      {% if job.log and job.state in ('running', 'failed') %}<pre class="tiny bv-log">{{ job.log }}</pre>{% endif %}
+
+      {% if job.kit %}
+        {% set k = job.kit %}
+        <div class="bv-kit">
+          <video controls preload="metadata" src="/files/media?path={{ k.video | urlencode }}"
+                 {% if k.thumbnail %}poster="/files/media?path={{ k.thumbnail | urlencode }}"{% endif %}></video>
+          <div class="row small">
+            <a class="button small" href="/files/download?path={{ k.video | urlencode }}">Video (MP4)</a>
+            {% if k.mp3 %}<a class="button small" href="/files/download?path={{ k.mp3 | urlencode }}">Audio (MP3)</a>{% endif %}
+            {% if k.thumbnail %}<a class="button small" href="/files/download?path={{ k.thumbnail | urlencode }}">Thumbnail</a>{% endif %}
+            <span class="tiny muted">{{ k.duration }} · {{ k.size_mb }} MB</span>
+            {% if k.loudness_ok %}<span class="badge good">loudness ok</span>{% else %}<span class="badge warn">check loudness</span>{% endif %}
+          </div>
+        <details>
+          <summary class="small">Title, description and tags
+            {% if k.silences %}<span class="badge warn">{{ k.silences }} long silence(s)</span>{% endif %}
+          </summary>
+          <div class="grid grid-2">
+            <div>
+              {% if k.thumbnail %}<img class="bv-thumb" src="/files/media?path={{ k.thumbnail | urlencode }}" alt="Thumbnail">{% endif %}
+              <p class="tiny muted">{{ k.loudness }}</p>
+            </div>
+            <div>
+              <label class="small">Title <button type="button" class="small" onclick="copyText('t-{{ job.id }}', this)">Copy</button>
+                <input type="text" id="t-{{ job.id }}" value="{{ k.title }}" readonly>
+              </label>
+              <label class="small">Description <button type="button" class="small" onclick="copyText('d-{{ job.id }}', this)">Copy</button>
+                <textarea id="d-{{ job.id }}" rows="9" readonly>{{ k.description }}</textarea>
+              </label>
+              <label class="small">Tags <button type="button" class="small" onclick="copyText('g-{{ job.id }}', this)">Copy</button>
+                <textarea id="g-{{ job.id }}" rows="3" readonly>{{ k.tags }}</textarea>
+              </label>
+              <p class="tiny muted">On YouTube, set "Altered or synthetic content" to Yes (AI voice) and "Made for kids" to No.</p>
+            </div>
+          </div>
+        </details>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>

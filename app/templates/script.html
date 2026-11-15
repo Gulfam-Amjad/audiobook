@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Script - {{ project.name }}{% endblock %}
+{% block heading %}Script: {{ project.name }}{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    A plan is validated before it is stored and must be approved before any
+    later stage may spend a credit or a second of borrowed GPU time.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/projects/{{ project.id }}/voice" class="button">Narration</a>
+  <a href="/projects/{{ project.id }}" class="button">Project</a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/script_body.html" %}
+{% endblock %}

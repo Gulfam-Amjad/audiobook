@@ -1,0 +1,94 @@
+{% if not ffmpeg.available %}
+  <div class="banner warn mb">
+    <strong>FFmpeg is not available.</strong> {{ ffmpeg.message }}
+    <p style="margin:8px 0 0">{{ install.note }}</p>
+    <ul>
+      {% for label, command in install.commands %}
+        <li><span class="tiny muted">{{ label }}</span><br><span class="mono">{{ command }}</span></li>
+      {% endfor %}
+    </ul>
+    <p class="tiny" style="margin:0">
+      <a href="{{ install.official_url }}" target="_blank" rel="noopener">ffmpeg.org</a>
+      · <a href="{{ install.manual_url }}" target="_blank" rel="noopener">Windows builds</a>.
+      After installing, restart the app, or paste the exe paths into Settings.
+    </p>
+  </div>
+{% else %}
+  <div class="banner good mb">{{ ffmpeg.ffmpeg_version or 'FFmpeg is available.' }}</div>
+{% endif %}
+
+<div class="panel mb">
+  <h2>New assembly</h2>
+  {% if outputs %}
+    <form hx-post="/assembly" hx-target="#assembly-body">
+      <div class="field" style="max-width:320px">
+        <label>Name</label>
+        <input type="text" name="name" value="Assembly" required>
+      </div>
+      <p class="tiny muted">Tick clips in the order you want them played.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>Order</th><th>Clip</th><th>Measured</th></tr></thead>
+          <tbody>
+            {% for output in outputs %}
+              <tr>
+                <td><input type="checkbox" class="asm-pick" value="{{ output.id }}"></td>
+                <td><input type="number" class="asm-order" data-id="{{ output.id }}" min="1" style="width:70px"></td>
+                <td class="tiny mono">{{ output.file_path.split('\\')[-1].split('/')[-1] }}</td>
+                <td class="tiny">
+                  {% if output.duration_s is not none %}{{ '%.2f'|format(output.duration_s) }}s{% else %}unknown{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <input type="hidden" name="output_ids" id="asm-ids">
+      <div class="field-row mt">
+        <div class="field"><label>Width</label><input type="number" name="width" value="1280" min="16" max="3840"></div>
+        <div class="field"><label>Height</label><input type="number" name="height" value="720" min="16" max="2160"></div>
+        <div class="field"><label>FPS</label><input type="number" name="fps" value="24" min="2" max="60"></div>
+        <div class="field"><label>Fade (seconds, 0 = none)</label><input type="number" name="fade_s" value="0" min="0" max="5" step="0.1"></div>
+      </div>
+      <div class="field">
+        <label>Audio file (optional, absolute path)</label>
+        <input type="text" name="audio_path" placeholder="D:\Music\bed.mp3">
+      </div>
+      <button class="btn-primary" type="submit"
+              onclick="const rows=[...document.querySelectorAll('.asm-order')].filter(el => el.value && document.querySelector('.asm-pick[value=\''+el.dataset.id+'\']').checked).sort((a,b)=>Number(a.value)-Number(b.value)); document.getElementById('asm-ids').value = rows.map(el => el.dataset.id).join(',');">
+        Assemble
+      </button>
+      <span class="tiny muted">Needs at least two clips that already have a measured duration.</span>
+    </form>
+  {% else %}
+    <p class="muted small">No clips in the library yet.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Assemblies</h2>
+  {% for row in assemblies %}
+    <div class="spread mt">
+      <div>
+        <strong>{{ row.name }}</strong>
+        <span class="badge {{ row.status | tone }}">{{ row.status | pretty_status }}</span>
+        <div class="tiny muted">{{ row.stage_message }}</div>
+        <div class="tiny muted">
+          {% if row.source_duration_s is not none %}Source clips {{ '%.1f'|format(row.source_duration_s) }}s.{% endif %}
+          {% if row.output_duration_s is not none %}File {{ '%.1f'|format(row.output_duration_s) }}s.{% endif %}
+          {% if row.error and row.status == 'failed' %}{{ row.error }}{% endif %}
+        </div>
+        {% if row.progress %}
+          <div class="bar mt" style="max-width:280px"><span style="width:{{ row.progress }}%"></span></div>
+        {% endif %}
+      </div>
+      {% if row.status not in ('completed', 'failed', 'cancelled') %}
+        <button class="btn-small btn-danger" hx-post="/assembly/{{ row.id }}/cancel" hx-target="#assembly-body">
+          Cancel
+        </button>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted small" style="margin:0">None yet.</p>
+  {% endfor %}
+</div>

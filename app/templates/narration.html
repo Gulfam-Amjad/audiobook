@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Narration - {{ project.name }}{% endblock %}
+{% block heading %}Narration: {{ project.name }}{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    One audio file per sentence, each measured with ffprobe. Those measured
+    lengths are what subtitle timing is built from later, so nothing here is
+    estimated from a word count.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/projects/{{ project.id }}/shots" class="button">Shots</a>
+  <a href="/voices" class="button">Voices</a>
+  <a href="/projects/{{ project.id }}/script" class="button">Script</a>
+  <a href="/projects/{{ project.id }}" class="button">Project</a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/narration_body.html" %}
+{% endblock %}

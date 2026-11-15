@@ -1,0 +1,35 @@
+<div class="panel panel-tight">
+  <div class="spread mb">
+    <strong class="truncate" title="{{ image.path }}">{{ image.filename }}</strong>
+    <span class="badge {{ image.status | tone }}">{{ image.status | pretty_status }}</span>
+  </div>
+
+  <p class="tiny muted">
+    Effective prompt
+    {% if effective_source == 'image_override' %}(this image's own prompt)
+    {% elif effective_source == 'template' %}(from the default template)
+    {% else %}(unavailable){% endif %}:
+  </p>
+  <p class="small mono mb">{{ effective }}</p>
+
+  <form hx-post="/images/{{ image.id }}/prompt" hx-target="this" hx-swap="outerHTML">
+    <div class="field">
+      <label>Prompt for this image (leave blank to use the default template)</label>
+      <textarea name="prompt" rows="3">{{ override.prompt if override else '' }}</textarea>
+    </div>
+    <div class="field">
+      <label>Negative prompt</label>
+      <textarea name="negative_prompt" rows="2">{{ override.negative_prompt if override and override.negative_prompt else '' }}</textarea>
+    </div>
+    <button type="submit" class="btn-primary btn-small">Save</button>
+  </form>
+
+  <details style="margin-top:8px">
+    <summary>Token values for this image</summary>
+    <ul class="tiny muted" style="margin:6px 0 0; padding-left:18px;">
+      {% for key, value in tokens.items() %}
+        <li><code>{{ '{' }}{{ key }}{{ '}' }}</code> &rarr; {{ value or '(empty)' }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+</div>

@@ -1,0 +1,129 @@
+<div id="narration-body">
+  {% if not script %}
+    <div class="banner warn mb">
+      <strong>No approved script.</strong>
+      Narration reads the approved version only.
+      <a href="/projects/{{ project.id }}/script">Write and approve one first.</a>
+    </div>
+  {% endif %}
+
+  {% if not piper.available %}
+    <div class="banner warn mb">
+      <strong>Piper is not installed.</strong> {{ piper.message }}
+      <a href="/voices">Install it on the Voices screen.</a>
+    </div>
+  {% elif not narrator and not voices %}
+    <div class="banner warn mb">
+      <strong>No voice installed.</strong>
+      <a href="/voices">Install one</a> before recording.
+    </div>
+  {% endif %}
+
+  <div class="panel mb">
+    <h2>Record</h2>
+    <div class="grid grid-4">
+      <div class="stat">
+        <div class="label">Segments</div>
+        <div class="value">{{ totals.ready }}/{{ totals.total }}</div>
+        <div class="hint">one per sentence</div>
+      </div>
+      <div class="stat">
+        <div class="label">Measured narration</div>
+        <div class="value">{{ totals.measured_s | round(1) }}s</div>
+        <div class="hint">read back from the files, not estimated</div>
+      </div>
+      <div class="stat">
+        <div class="label">Target length</div>
+        <div class="value">{{ target_duration_s }}s</div>
+        <div class="hint">speech only; shots can run longer</div>
+      </div>
+      <div class="stat">
+        <div class="label">Problems</div>
+        <div class="value">{{ totals.failed }}</div>
+        <div class="hint">{{ totals.pending }} still waiting</div>
+      </div>
+    </div>
+
+    <p class="small muted mt">
+      Narrator: {{ narrator.name if narrator else 'the default voice' }}.
+      Re-recording only touches lines whose text or voice settings changed.
+    </p>
+
+    <div class="mt">
+      <button class="primary" hx-post="/projects/{{ project.id }}/voice/synthesise"
+              hx-target="#narration-body" hx-swap="outerHTML"
+              {{ 'disabled' if not script or not piper.available }}>
+        Record what is missing
+      </button>
+      <button hx-post="/projects/{{ project.id }}/voice/plan"
+              hx-target="#narration-body" hx-swap="outerHTML"
+              {{ 'disabled' if not script }}>
+        Just split into sentences
+      </button>
+    </div>
+
+    {% if checkpoint.blocked_reason %}
+      <div class="banner warn mt"><strong>On hold.</strong> {{ checkpoint.blocked_reason }}</div>
+    {% elif checkpoint.message %}
+      <p class="small muted mt">{{ checkpoint.message }}</p>
+    {% endif %}
+  </div>
+
+  {% if licence_warnings %}
+    <div class="banner warn mb">
+      <strong>Licence of the voices used here.</strong>
+      <ul>{% for note in licence_warnings %}<li>{{ note }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  {% for scene in scenes %}
+    {% set rows = segments.get(scene.id, []) %}
+    <div class="panel mb">
+      <h3>
+        {{ scene.order_index + 1 }}. {{ scene.purpose or scene.scene_key }}
+        {% if scene.measured_audio_s is not none %}
+          <span class="badge good">{{ scene.measured_audio_s | round(2) }}s measured</span>
+        {% else %}
+          <span class="badge">not fully recorded</span>
+        {% endif %}
+        <span class="tiny muted">planned {{ scene.target_duration_s | round(1) }}s</span>
+      </h3>
+      {% if rows %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Line</th><th>Voice</th><th class="right">Length</th><th>State</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr>
+                  <td class="tiny">{{ row.order_index + 1 }}<div class="muted">{{ row.kind }}</div></td>
+                  <td class="tiny">{{ row.text }}</td>
+                  <td class="tiny">{{ row.voice_profile.name if row.voice_profile else 'none assigned' }}</td>
+                  <td class="right tiny">
+                    {% if row.duration_s is not none %}{{ row.duration_s | round(2) }}s{% else %}&mdash;{% endif %}
+                  </td>
+                  <td>
+                    {% if row.status == 'ready' %}<span class="badge good">ready</span>
+                    {% elif row.status == 'failed' %}<span class="badge bad">failed</span>
+                    {% else %}<span class="badge">{{ row.status }}</span>{% endif %}
+                    {% if row.error %}<div class="tiny muted">{{ row.error }}</div>{% endif %}
+                  </td>
+                  <td class="right">
+                    <button class="small" hx-post="/segments/{{ row.id }}/regenerate"
+                            hx-target="#narration-body" hx-swap="outerHTML"
+                            {{ 'disabled' if not piper.available }}>
+                      Re-record
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="small muted">Not split into sentences yet.</p>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Credits - AI Video Generation Manager{% endblock %}
+{% block heading %}Credits &amp; Spending{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Every balance says where it came from. A figure you typed is shown as yours and
+    never treated as fact; a figure the provider reported is marked verified. The app
+    never assumes an allowance refilled - it only moves a reset boundary that the
+    provider stated or you recorded, and then waits for the real number.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div id="credits-body">
+    {% include "partials/credits_body.html" %}
+  </div>
+{% endblock %}

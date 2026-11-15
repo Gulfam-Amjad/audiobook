@@ -1,0 +1,168 @@
+<div id="shots-body">
+  {% if not script %}
+    <div class="banner warn mb">
+      <strong>No approved script.</strong>
+      <a href="/projects/{{ project.id }}/script">Write and approve one first.</a>
+    </div>
+  {% endif %}
+
+  <div class="panel mb">
+    <h2>What this cut actually is</h2>
+    <p>{{ summary }}</p>
+    <div class="grid grid-4 mt">
+      <div class="stat">
+        <div class="label">Generated motion</div>
+        <div class="value">{{ report.generated_motion_s | round(1) }}s</div>
+        <div class="hint">
+          {{ report.generated_clips }} clip(s) a model animated;
+          budget {{ project.max_generated_motion_s | round(0) | int }}s
+        </div>
+      </div>
+      <div class="stat">
+        <div class="label">Camera moves</div>
+        <div class="value">{{ report.camera_move_s | round(1) }}s</div>
+        <div class="hint">{{ report.camera_move_clips }} still(s) with the frame moving. Editing, not animation.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Assembled length</div>
+        <div class="value">{{ report.assembled_s | round(1) }}s</div>
+        <div class="hint">both kinds together; target {{ project.target_duration_s }}s</div>
+      </div>
+      <div class="stat">
+        <div class="label">Shots without a clip</div>
+        <div class="value">{{ report.scenes_without_clip }}</div>
+        <div class="hint">of {{ report.scene_count }} in the script</div>
+      </div>
+    </div>
+
+    <div class="mt">
+      <button class="primary" hx-post="/projects/{{ project.id }}/shots/render"
+              hx-target="#shots-body" hx-swap="outerHTML"
+              {{ 'disabled' if not script }}>
+        Plan and render what can be done here
+      </button>
+      <button hx-post="/projects/{{ project.id }}/shots/plan"
+              hx-target="#shots-body" hx-swap="outerHTML"
+              {{ 'disabled' if not script }}>
+        Just plan the methods
+      </button>
+      <a href="/projects/{{ project.id }}/render" class="button">Go to render</a>
+      <span class="small muted">Output frame {{ frame }} at {{ project.fps }} fps.</span>
+    </div>
+
+    {% if motion.blocked_reason %}
+      <div class="banner warn mt"><strong>On hold.</strong> {{ motion.blocked_reason }}</div>
+    {% elif motion.message %}
+      <p class="small muted mt">{{ motion.message }}</p>
+    {% endif %}
+  </div>
+
+  <div class="panel mb">
+    <h2>What is available right now</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Method</th><th>Makes motion?</th><th>State</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          {% for method in methods %}
+            <tr>
+              <td class="tiny">
+                {{ method.method }}
+                {% if method.costs_money %}<span class="badge warn">can cost money</span>{% endif %}
+                {% if method.needs_user %}<span class="badge">needs you</span>{% endif %}
+              </td>
+              <td class="tiny">
+                {% if method.generates_motion %}yes{% else %}no, this is editing{% endif %}
+              </td>
+              <td>
+                {% if method.available %}
+                  <span class="badge good">available</span>
+                {% else %}
+                  <span class="badge">unavailable</span>
+                {% endif %}
+              </td>
+              <td class="tiny muted">{{ method.reason }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if scenes %}
+    <div class="panel">
+      <h2>Shot list</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Still</th><th class="right">Length</th>
+              <th>Method</th><th>Takes</th><th>Why this method</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for scene in scenes %}
+              {% set duration = durations.get(scene.id) %}
+              <tr>
+                <td class="tiny">
+                  {{ scene.order_index + 1 }}
+                  <div class="muted">{{ scene.scene_key }}</div>
+                </td>
+                <td class="tiny">{{ scene.image.filename if scene.image else 'none chosen' }}</td>
+                <td class="right tiny">
+                  {% if duration %}
+                    {{ duration[0] | round(2) }}s
+                    <div class="muted">{{ 'measured' if duration[1] else 'planned' }}</div>
+                  {% endif %}
+                </td>
+                <td class="tiny">
+                  {% if scene.assigned_method %}
+                    {{ scene.assigned_method }}
+                    {% if scene.assigned_method in ('camera_move', 'still') %}
+                      <div class="muted">{{ (scene.validation or {}).get('camera_move', '') }}</div>
+                    {% endif %}
+                  {% else %}
+                    <span class="muted">not planned</span>
+                  {% endif %}
+                  {% if scene.preferred_method and scene.preferred_method != scene.assigned_method %}
+                    <div class="muted">asked for {{ scene.preferred_method }}</div>
+                  {% endif %}
+                </td>
+                <td class="tiny">
+                  {% for clip in clips.get(scene.id, []) %}
+                    <div>
+                      {% if clip.selected %}<strong>in the edit</strong>{% endif %}
+                      {{ clip.method }}
+                      {% if clip.duration_s %}{{ clip.duration_s | round(2) }}s{% endif %}
+                      {% if clip.is_generated_motion %}
+                        <span class="badge good">animated</span>
+                      {% else %}
+                        <span class="badge">camera move</span>
+                      {% endif %}
+                      {% if clip.status == 'failed' %}
+                        <span class="badge bad">failed</span>
+                        <div class="muted">{{ clip.error }}</div>
+                      {% elif not clip.selected and clip.status == 'ready' %}
+                        <button class="small" hx-post="/clips/{{ clip.id }}/select"
+                                hx-target="#shots-body" hx-swap="outerHTML">Use this take</button>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <span class="muted">nothing rendered yet</span>
+                  {% endfor %}
+                </td>
+                <td class="tiny muted">{{ (scene.validation or {}).get('routing_reason', '') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="tiny muted">
+        A clip marked "camera move" was made by moving the frame across a still
+        picture with FFmpeg. Nothing in the picture moves. Only clips marked
+        "animated" count towards generated motion.
+      </p>
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Manual Assist - AI Video Generation Manager{% endblock %}
+{% block heading %}Manual Assist{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    The app prepares the work. You generate the clip on the site and drop the
+    download into that site's inbox folder. Seven of these sites forbid bots,
+    so nothing here opens a browser or clicks anything for you.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div id="manual-body">
+    {% include "partials/manual_body.html" %}
+  </div>
+{% endblock %}

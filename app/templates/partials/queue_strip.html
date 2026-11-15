@@ -1,0 +1,22 @@
+<div id="queue-strip" hx-get="/partials/queue-strip" hx-trigger="every 10s" hx-swap="outerHTML">
+  {% if status.running or status.waiting %}
+    {% set now = status.running %}
+    <a class="queue-strip" href="/book-video">
+      {% if now %}
+        {% set p = now.progress %}
+        <span class="badge busy">Making</span>
+        <b>{{ now.title }}</b>
+        {% if p %}
+          <span class="queue-strip-bar"><span style="width: {{ p.percent }}%"></span></span>
+          <span>{{ p.percent }}% · {{ p.label }}{% if p.detail %} ({{ p.detail }}){% endif %}</span>
+        {% endif %}
+        {% if now.left %}<span>· about {{ now.left }} left</span>{% endif %}
+      {% else %}
+        <span class="badge {{ 'warn' if not status.runner else 'neutral' }}">{{ 'Paused' if not status.runner else 'Starting' }}</span>
+      {% endif %}
+      {% if status.waiting %}<span class="muted">· {{ status.waiting }} waiting</span>{% endif %}
+      {% if status.finish_at %}<span class="muted">· all ready around {{ status.finish_at }}</span>{% endif %}
+      <span class="queue-strip-open">Open Book Video</span>
+    </a>
+  {% endif %}
+</div>

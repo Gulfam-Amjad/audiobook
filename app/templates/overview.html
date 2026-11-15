@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Overview - AI Video Generation Manager{% endblock %}
+{% block heading %}Overview{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Generated AI motion is measured from the real duration of clips providers
+    actually produced. Assembling clips into a longer montage does not add to it.
+  </p>
+{% endblock %}
+
+{% block content %}
+  {% if stats.queue_paused %}
+    <div class="banner warn">
+      The queue is <strong>paused</strong>. Nothing will be submitted until you start it
+      from the <a href="/queue">Queue</a> screen.
+    </div>
+  {% endif %}
+
+  {% if not stats.paid_enabled %}
+    <div class="banner info">
+      Paid generation is <strong>off</strong>. Jobs with a non-zero cost estimate will be
+      refused before submission. Enable it and set a cap in
+      <a href="/settings">Settings</a> if you decide to spend money.
+    </div>
+  {% endif %}
+
+  <div id="overview-stats"
+       hx-get="/partials/overview-stats"
+       hx-trigger="every 10s"
+       hx-swap="innerHTML">
+    {% include "partials/overview_stats.html" %}
+  </div>
+
+  <div class="grid grid-2">
+    <div class="panel">
+      <h2>Provider health</h2>
+      {% if provider_health %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th><th>Type</th><th>Status</th>
+                <th class="num">Accounts</th><th class="num">Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in provider_health %}
+                <tr>
+                  <td>
+                    <a href="/providers#{{ row.key }}">{{ row.name }}</a>
+                    {% if not row.enabled %}<span class="muted tiny">(disabled)</span>{% endif %}
+                  </td>
+                  <td class="muted small">{{ row.kind }}</td>
+                  <td>
+                    <span class="badge {{ row.status | tone }}">{{ row.status | pretty_status }}</span>
+                  </td>
+                  <td class="num">{{ row.accounts }}</td>
+                  <td class="num">{{ row.active_jobs }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="muted tiny mt">
+          "Unverified" means the adapter was written from the provider's documentation
+          but has never completed a real call. It is not a claim that it works.
+        </p>
+      {% else %}
+        <div class="empty">No providers registered.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>Getting started</h2>
+      <ol class="small" style="padding-left:18px; line-height:1.9;">
+        <li><a href="/images">Add an image folder</a> and scan it.</li>
+        <li><a href="/prompts">Write a default prompt</a> for image-to-video motion.</li>
+        <li><a href="/providers">Review providers</a> - every one starts disabled and unverified.</li>
+        <li><a href="/manual">Set up manual assist</a> for the websites you use by hand.</li>
+        <li><a href="/queue">Queue a test job</a> against the mock provider first.</li>
+        <li><a href="/settings">Point the app at FFmpeg</a> so clip durations can be measured.</li>
+      </ol>
+      <hr>
+      <div class="spread">
+        <span class="muted small">Unmatched manual downloads</span>
+        <span>
+          {% if stats.inbox_unmatched %}
+            <a href="/manual" class="badge warn">{{ stats.inbox_unmatched }} waiting</a>
+          {% else %}
+            <span class="badge neutral">none</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="spread mt">
+        <span class="muted small">Images reported missing</span>
+        <span>
+          {% if stats.images_missing %}
+            <a href="/images?status=missing" class="badge bad">{{ stats.images_missing }}</a>
+          {% else %}
+            <span class="badge neutral">none</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="spread mt">
+        <span class="muted small">Jobs needing a decision</span>
+        <span>
+          {% if stats.jobs_uncertain %}
+            <a href="/queue?status=uncertain" class="badge warn">{{ stats.jobs_uncertain }} uncertain</a>
+          {% else %}
+            <span class="badge neutral">none</span>
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+{% endblock %}

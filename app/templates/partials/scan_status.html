@@ -1,0 +1,60 @@
+{% if folders %}
+  <div class="table-wrap mt">
+    <table>
+      <thead>
+        <tr>
+          <th>Path</th><th>Subfolders</th><th>Last scan</th>
+          <th class="num">Files</th><th>Scan state</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for folder in folders %}
+          {% set scan = scans.get(folder.id) %}
+          <tr>
+            <td class="mono truncate" title="{{ folder.path }}">{{ folder.path }}</td>
+            <td class="muted small">{{ 'yes' if folder.recursive else 'no' }}</td>
+            <td class="muted small">{{ folder.last_scan_at | when if folder.last_scan_at else 'never' }}</td>
+            <td class="num">{{ folder.last_scan_found }}</td>
+            <td>
+              {% if scan %}
+                {% if scan.state == 'running' %}
+                  <span class="badge busy">scanning</span>
+                  <span class="muted tiny">{{ scan.files_seen }} seen, {{ scan.added }} added</span>
+                {% elif scan.state == 'done' %}
+                  <span class="badge good">done</span>
+                  <span class="muted tiny">{{ scan.message }}</span>
+                {% elif scan.state == 'cancelled' %}
+                  <span class="badge neutral">cancelled</span>
+                {% else %}
+                  <span class="badge bad">failed</span>
+                  <span class="muted tiny">{{ scan.message }}</span>
+                {% endif %}
+              {% else %}
+                <span class="muted tiny">idle</span>
+              {% endif %}
+            </td>
+            <td class="right nowrap">
+              {% if scan and scan.state == 'running' %}
+                <button class="btn-small"
+                        hx-post="/images/folders/{{ folder.id }}/cancel"
+                        hx-target="#scan-status">Cancel</button>
+              {% else %}
+                <button class="btn-small"
+                        hx-post="/images/folders/{{ folder.id }}/scan"
+                        hx-target="#scan-status">Rescan</button>
+                <button class="btn-small btn-danger"
+                        hx-delete="/images/folders/{{ folder.id }}"
+                        hx-target="#scan-status"
+                        hx-confirm="Remove this folder from the library? Your image files are not deleted.">
+                  Remove
+                </button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty">No folders yet. Add one above to build the library.</div>
+{% endif %}

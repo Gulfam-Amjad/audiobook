@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Assembly - AI Video Generation Manager{% endblock %}
+{% block heading %}Assembly{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Clips are resized to one shape and joined. The originals are not modified.
+    A fade makes the finished file shorter than the sum of the clips; that
+    shorter length is not extra generated video.
+  </p>
+{% endblock %}
+{% block content %}
+  <div id="assembly-body" hx-get="/partials/assembly" hx-trigger="every 4s" hx-swap="innerHTML">
+    {% include "partials/assembly_body.html" %}
+  </div>
+{% endblock %}

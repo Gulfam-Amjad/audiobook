@@ -1,0 +1,87 @@
+{% if images %}
+  <div x-data="imageSelection()" class="mt">
+    <div class="spread mb">
+      <div class="row">
+        <button type="button" class="btn-small" @click="selectAll()">Select page</button>
+        <button type="button" class="btn-small" @click="clear()">Clear</button>
+        <span class="muted small" x-text="count() + ' of {{ total }} selected'"></span>
+      </div>
+      <form hx-post="/queue/add" hx-target="#flash" hx-swap="innerHTML" @submit="syncIds()">
+        <input type="hidden" name="image_ids" x-ref="ids">
+        <button type="submit" class="btn-primary btn-small" :disabled="count() === 0">
+          Queue selected
+        </button>
+      </form>
+    </div>
+
+    <div class="thumbs">
+      {% for image in images %}
+        <div class="thumb"
+             :class="{ selected: isSelected({{ image.id }}) }"
+             @click="toggle({{ image.id }})">
+          <input class="pick" type="checkbox"
+                 :checked="isSelected({{ image.id }})"
+                 @click.stop="toggle({{ image.id }})">
+          <span class="state badge {{ image.status | tone }}">{{ image.status | pretty_status }}</span>
+          {% if image.thumb_path %}
+            <img src="/images/{{ image.id }}/thumb" alt="{{ image.filename }}" loading="lazy">
+          {% else %}
+            <div style="height:100px; display:flex; align-items:center; justify-content:center;"
+                 class="muted tiny">no preview</div>
+          {% endif %}
+          <div class="meta">
+            <div class="name" title="{{ image.path }}">{{ image.filename }}</div>
+            <div>
+              {% if image.width and image.height %}{{ image.width }}&times;{{ image.height }}{% else %}? &times; ?{% endif %}
+              &middot; {{ image.size_bytes | filesize }}
+            </div>
+            {% if image.duplicate_of_id %}
+              <div class="badge warn" style="margin-top:3px">duplicate</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% set pages = (total // query.page_size) + (1 if total % query.page_size else 0) %}
+    {% if pages > 1 %}
+      <div class="row mt" style="justify-content:center;">
+        {% if query.page > 1 %}
+          <button class="btn-small"
+                  hx-get="/partials/images/grid?page={{ query.page - 1 }}{% if query.status %}&status={{ query.status }}{% endif %}{% if query.folder_id %}&folder_id={{ query.folder_id }}{% endif %}{% if query.search %}&search={{ query.search }}{% endif %}{% if not query.hide_duplicates %}&show_dupes=true{% endif %}"
+                  hx-target="#image-grid">Previous</button>
+        {% endif %}
+        <span class="muted small">Page {{ query.page }} of {{ pages }}</span>
+        {% if query.page < pages %}
+          <button class="btn-small"
+                  hx-get="/partials/images/grid?page={{ query.page + 1 }}{% if query.status %}&status={{ query.status }}{% endif %}{% if query.folder_id %}&folder_id={{ query.folder_id }}{% endif %}{% if query.search %}&search={{ query.search }}{% endif %}{% if not query.hide_duplicates %}&show_dupes=true{% endif %}"
+                  hx-target="#image-grid">Next</button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+    // Defined per render so the ids on this page are available to Alpine.
+    function imageSelection() {
+      return {
+        selected: new Set(),
+        pageIds: {{ images | map(attribute='id') | list | tojson }},
+        toggle(id) {
+          if (this.selected.has(id)) { this.selected.delete(id); } else { this.selected.add(id); }
+          this.selected = new Set(this.selected);
+        },
+        isSelected(id) { return this.selected.has(id); },
+        selectAll() { this.selected = new Set(this.pageIds); },
+        clear() { this.selected = new Set(); },
+        count() { return this.selected.size; },
+        syncIds() { this.$refs.ids.value = Array.from(this.selected).join(','); }
+      };
+    }
+  </script>
+{% else %}
+  <div class="empty">
+    No images match this filter.
+    {% if query.status or query.search or query.folder_id %}Try clearing the filters.{% endif %}
+  </div>
+{% endif %}

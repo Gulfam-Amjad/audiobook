@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Borrowed GPU time{% endblock %}
+{% block heading %}Borrowed GPU time{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Open-source animation models need more VRAM than this machine has, so the
+    work is sent to a free GPU session elsewhere and the finished files are
+    brought back and measured here. A run that finishes without producing a
+    playable clip is recorded as a failure, not a success.
+  </p>
+{% endblock %}
+{% block actions %}
+  <button hx-get="/remote/quota{{ '?project_id=' ~ project_id if project_id }}"
+          hx-target="#remote-body" hx-swap="outerHTML">Check remaining quota</button>
+  <button hx-post="/remote/reconcile{{ '?project_id=' ~ project_id if project_id }}"
+          hx-target="#remote-body" hx-swap="outerHTML">Chase up outstanding runs</button>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/remote_body.html" %}
+{% endblock %}

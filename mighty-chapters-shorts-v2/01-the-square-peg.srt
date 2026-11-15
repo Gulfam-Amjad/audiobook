@@ -1,0 +1,63 @@
+1
+00:00:00,000 --> 00:00:01,537
+Houston, we've had a problem.
+
+2
+00:00:01,667 --> 00:00:04,595
+Three men are breathing poison. The fix is a square peg.
+
+3
+00:00:04,700 --> 00:00:08,061
+An oxygen tank exploded on April 13, 1970.
+
+4
+00:00:08,167 --> 00:00:12,477
+Lovell, Swigert and Haise ran into the lunar module, Aquarius.
+
+5
+00:00:12,600 --> 00:00:15,574
+Aquarius was built to keep two men alive for about two days.
+
+6
+00:00:15,700 --> 00:00:18,012
+Now it had to keep three men alive for four.
+
+7
+00:00:18,133 --> 00:00:20,721
+Carbon dioxide from their breathing began to build up.
+
+8
+00:00:20,833 --> 00:00:23,069
+The command module's filters were round.
+
+9
+00:00:23,200 --> 00:00:24,877
+The slot in Aquarius was square.
+
+10
+00:00:25,000 --> 00:00:26,164
+The filters would not fit.
+
+11
+00:00:26,267 --> 00:00:29,581
+Engineers on the ground had one job: build an adapter from what was on board.
+
+12
+00:00:29,700 --> 00:00:35,427
+Plastic bags. Duct tape. Cardboard. A spacesuit hose.
+
+13
+00:00:35,533 --> 00:00:38,692
+The crew built it step by step, while the air got worse.
+
+14
+00:00:38,800 --> 00:00:42,293
+The carbon dioxide dropped. They came home on April 17.
+
+15
+00:00:42,400 --> 00:00:45,039
+The mission never landed on the Moon. The crew came home.
+
+16
+00:00:45,167 --> 00:00:47,643
+Would you have trusted a cardboard fix to keep you alive?

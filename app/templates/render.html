@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Render - {{ project.name }}{% endblock %}
+{% block heading %}Render: {{ project.name }}{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    The shots are joined, the measured narration is laid onto the timeline, the
+    subtitles are timed from that same measurement, and then the finished file
+    is checked. A file that FFmpeg produced but that fails its checks is
+    recorded as a failure, not a success.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/projects/{{ project.id }}/shots" class="button">Shots</a>
+  <a href="/projects/{{ project.id }}/voice" class="button">Narration</a>
+  <a href="/projects/{{ project.id }}" class="button">Project</a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/render_body.html" %}
+{% endblock %}

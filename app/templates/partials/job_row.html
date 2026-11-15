@@ -1,0 +1,68 @@
+{% set image = images.get(job.image_id) %}
+{% set provider = providers.get(job.provider_key) if job.provider_key else None %}
+<tr id="job-{{ job.id }}">
+  <td class="mono tiny">{{ job.id }}</td>
+  <td>
+    <div class="truncate small" title="{{ image.path if image else '' }}">
+      {{ image.filename if image else 'image #' ~ job.image_id }}
+    </div>
+    {% if job.manual_token %}
+      <div class="muted tiny mono">{{ job.manual_token }}</div>
+    {% endif %}
+  </td>
+  <td class="small">
+    {% if provider %}
+      {{ provider.display_name }}
+      {% if job.provider_locked %}<span class="badge info">pinned</span>{% endif %}
+    {% else %}
+      <span class="muted">auto</span>
+    {% endif %}
+  </td>
+  <td class="tiny muted mono">
+    {{ job.settings.get('duration_s', '?') }}s
+    {{ job.settings.get('resolution', '?') }}
+    {{ job.settings.get('aspect_ratio', '') }}
+  </td>
+  <td>
+    <span class="badge {{ job.status | tone }}">{{ job.status | pretty_status }}</span>
+    {% if job.attempts > 1 %}
+      <div class="muted tiny">attempt {{ job.attempts }}</div>
+    {% endif %}
+  </td>
+  <td class="small" style="max-width: 320px;">
+    {% if job.last_error %}
+      <span class="muted">{{ job.last_error }}</span>
+    {% elif job.status == 'awaiting_manual' %}
+      <span class="muted">Waiting for your download. Code <code>{{ job.manual_token }}</code>.</span>
+    {% elif job.next_attempt_at %}
+      <span class="muted">Next attempt {{ job.next_attempt_at | when }}</span>
+    {% else %}
+      <span class="muted tiny">{{ job.updated_at | when }}</span>
+    {% endif %}
+  </td>
+  <td class="num tiny">
+    {% if job.cost_estimate_usd %}{{ job.cost_estimate_usd | usd }}{% else %}free{% endif %}
+  </td>
+  <td class="right nowrap">
+    <button class="btn-small" hx-get="/queue/jobs/{{ job.id }}" hx-target="#job-detail">Details</button>
+    {% if job.status == 'uncertain' %}
+      <button class="btn-small btn-primary"
+              hx-post="/queue/jobs/{{ job.id }}/reconcile"
+              hx-target="#job-{{ job.id }}" hx-swap="outerHTML">Reconcile</button>
+    {% elif job.status == 'queued' %}
+      <button class="btn-small" hx-post="/queue/jobs/{{ job.id }}/pause"
+              hx-target="#job-{{ job.id }}" hx-swap="outerHTML">Pause</button>
+    {% elif job.status == 'paused' %}
+      <button class="btn-small" hx-post="/queue/jobs/{{ job.id }}/resume"
+              hx-target="#job-{{ job.id }}" hx-swap="outerHTML">Resume</button>
+    {% elif job.status in ('failed', 'cancelled') %}
+      <button class="btn-small" hx-post="/queue/jobs/{{ job.id }}/retry"
+              hx-target="#job-{{ job.id }}" hx-swap="outerHTML">Retry</button>
+    {% endif %}
+    {% if job.status not in ('completed', 'failed', 'cancelled') %}
+      <button class="btn-small btn-danger" hx-post="/queue/jobs/{{ job.id }}/cancel"
+              hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+              hx-confirm="Cancel job #{{ job.id }}?">Cancel</button>
+    {% endif %}
+  </td>
+</tr>

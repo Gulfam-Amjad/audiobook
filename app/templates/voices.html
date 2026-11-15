@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Voices{% endblock %}
+{% block heading %}Voices{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Piper narrates on the CPU, so narration costs nothing and needs no GPU.
+    Each voice carries its own licence, read from its model card at install
+    time rather than assumed here.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/projects" class="button">Projects</a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/voices_body.html" %}
+{% endblock %}

@@ -1,0 +1,31 @@
+{
+  "file": "C:\\Users\\Gulfam\\Desktop\\youtube\\mighty-chapters-shorts\\05-the-hammer-and-the-feather.mp4",
+  "title": "A Hammer and a Feather Fell Together on the Moon",
+  "duration_s": 46.067,
+  "loudness": "Input Integrated:    -15.7 LUFS",
+  "bytes": 127596968,
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 1080,
+        "height": 1920,
+        "avg_frame_rate": "30/1"
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio",
+        "sample_rate": "48000",
+        "channels": 2,
+        "avg_frame_rate": "0/0"
+      }
+    ],
+    "format": {
+      "duration": "46.066667",
+      "size": "127596968"
+    }
+  }
+}

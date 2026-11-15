@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Shots - {{ project.name }}{% endblock %}
+{% block heading %}Shots: {{ project.name }}{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Every shot needs a picture of the right length. Where a model can animate
+    one, it does; where it cannot, the camera moves over the still instead.
+    The two are counted separately and never added together.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/projects/{{ project.id }}/voice" class="button">Narration</a>
+  <a href="/projects/{{ project.id }}" class="button">Project</a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/shots_body.html" %}
+{% endblock %}

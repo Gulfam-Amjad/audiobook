@@ -1,0 +1,59 @@
+<div id="project-list" class="panel">
+  <h2>All projects</h2>
+  {% if not rows %}
+    <p class="muted">No projects yet. Create one above.</p>
+  {% else %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Status</th>
+            <th>Next stage</th>
+            <th class="right">Scenes</th>
+            <th class="right">Narration</th>
+            <th class="right">Generated motion</th>
+            <th>Format</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% set p = row.project %}
+            {% set g = row.progress %}
+            <tr>
+              <td>
+                <a href="/projects/{{ p.id }}"><strong>{{ p.name }}</strong></a>
+                {% if p.niche %}<div class="tiny muted">{{ p.niche }}</div>{% endif %}
+              </td>
+              <td><span class="badge">{{ p.status }}</span></td>
+              <td class="tiny">{{ row.next_stage.value if row.next_stage else 'all stages done' }}</td>
+              <td class="right">{{ g.scenes_ready }} / {{ g.scenes_total }}</td>
+              <td class="right">
+                {{ g.measured_audio_s | round(1) }}s
+                <div class="tiny muted">{{ g.audio_ready }} / {{ g.audio_total }} lines</div>
+              </td>
+              <td class="right">
+                {{ g.generated_motion_s | round(1) }}s
+                <div class="tiny muted">of {{ g.assembled_s | round(1) }}s assembled</div>
+              </td>
+              <td class="tiny">{{ p.resolution }} {{ p.aspect_ratio }} {{ p.fps }}fps<br>target {{ (p.target_duration_s / 60) | round(1) }} min</td>
+              <td class="right">
+                <button class="danger small"
+                        hx-post="/projects/{{ p.id }}/delete"
+                        hx-target="#project-list" hx-swap="outerHTML"
+                        hx-confirm="Delete '{{ p.name }}'? Files already written to disk are kept.">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny muted">
+      Generated motion counts only clips a model actually animated. Camera
+      moves over a still are listed under assembled length, never as motion.
+    </p>
+  {% endif %}
+</div>

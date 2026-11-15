@@ -1,0 +1,26 @@
+{% if not rows %}
+  <p class="muted small">
+    {% if source == 'library' %}The Image Library is empty. Add a folder on the <a href="/images">Image Library</a> page.
+    {% else %}Nothing usable was found for "{{ query }}". Try other words.{% endif %}
+  </p>
+{% else %}
+  <p class="small muted">Click a picture to use it as the cover.</p>
+  <div class="bv-picks">
+    {% for row in rows %}
+      {% if source == 'library' %}
+        <button type="button" class="bv-pick" title="{{ row.name }}"
+                hx-post="/book-video/cover/library" hx-vals='{"image_id": {{ row.id }}}'
+                hx-target="#bv-cover" hx-swap="outerHTML">
+          <img src="{{ row.thumb }}" alt="{{ row.name }}" loading="lazy">
+        </button>
+      {% else %}
+        <button type="button" class="bv-pick" title="{{ row.title }} ({{ row.licence }}, {{ row.size }})"
+                hx-post="/book-video/cover/commons" hx-vals='{{ {"url": row.url, "credit": row.credit} | tojson }}'
+                hx-target="#bv-cover" hx-swap="outerHTML">
+          <img src="{{ row.thumb }}" alt="{{ row.title }}" loading="lazy" referrerpolicy="no-referrer">
+          <span class="tiny">{{ row.licence }}</span>
+        </button>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

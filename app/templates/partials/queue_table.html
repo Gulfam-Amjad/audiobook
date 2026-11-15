@@ -1,0 +1,54 @@
+{% if jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Image</th><th>Provider</th><th>Settings</th>
+          <th>Status</th><th>Detail</th><th class="num">Est.</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+          {% include "partials/job_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% set pages = (total // query.page_size) + (1 if total % query.page_size else 0) %}
+  {% if pages > 1 %}
+    <div class="row mt" style="justify-content:center;">
+      {% if query.page > 1 %}
+        <button class="btn-small"
+                hx-get="/partials/queue/table?page={{ query.page - 1 }}{% if query.status %}&status={{ query.status }}{% endif %}"
+                hx-target="#queue-table">Previous</button>
+      {% endif %}
+      <span class="muted small">Page {{ query.page }} of {{ pages }}</span>
+      {% if query.page < pages %}
+        <button class="btn-small"
+                hx-get="/partials/queue/table?page={{ query.page + 1 }}{% if query.status %}&status={{ query.status }}{% endif %}"
+                hx-target="#queue-table">Next</button>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if query.status %}
+    <div class="row mt">
+      <form hx-post="/queue/bulk/cancel" hx-target="#queue-table"
+            hx-confirm="Cancel every job with status '{{ query.status }}'?">
+        <input type="hidden" name="status" value="{{ query.status }}">
+        <button class="btn-small btn-danger" type="submit">Cancel all {{ query.status | pretty_status }}</button>
+      </form>
+      {% if query.status in ('failed', 'cancelled') %}
+        <form hx-post="/queue/bulk/retry" hx-target="#queue-table">
+          <input type="hidden" name="status" value="{{ query.status }}">
+          <button class="btn-small" type="submit">Retry all {{ query.status | pretty_status }}</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    No jobs here. Select images in the <a href="/images">Image Library</a> and queue them.
+  </div>
+{% endif %}

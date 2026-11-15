@@ -1,0 +1,343 @@
+INSTRUCTIONS FOR POLISHING THESE AUDIOBOOK SCRIPTS
+===================================================
+
+Read this whole file before you change a single word of a book.
+The books are already complete. Your job is to make them speak cleanly
+in the app described below. Your job is not to shorten them, retell them,
+modernise them, or "improve" the author's sentences.
+
+
+WHO THIS IS FOR
+---------------
+
+These files are narration scripts for a local Windows app called
+AI Video Generation Manager, channel name Mighty Chapters.
+
+The person who sends you this file will also send one or more book files
+from the book-scripts folder. Polish each book separately. Return one
+plain text file per book, UTF-8, same filename.
+
+The three full books to polish, if they are attached, are:
+
+  dracula-bram-stoker-full-audiobook.txt
+  frankenstein-mary-shelley-full-audiobook.txt
+  the-picture-of-dorian-gray-oscar-wilde-full-audiobook.txt
+
+They are the full public-domain novels (Project Gutenberg text), already
+split into spoken chapters. They are not summaries. Do not turn them
+into summaries.
+
+
+HOW THE APP TURNS THE FILE INTO AN AUDIOBOOK
+--------------------------------------------
+
+There is no PDF step. Do not format the script like a PDF, a screenplay,
+a subtitle file, or a webpage.
+
+The app does this, in order:
+
+  1. It reads the text file.
+  2. A line that starts with a hash and a space (# ) is a chapter title.
+     That title is spoken out loud, and it becomes a YouTube chapter.
+  3. A blank line separates paragraphs.
+  4. The app cleans the text a second time (see "The second pass" below),
+     then adds its own short Introduction and Closing if you left those out.
+  5. A voice engine speaks the text into WAV, then FFmpeg joins it into
+     one MP3 (audiobook.mp3, 96k or 128k, speech).
+  6. The words are timed. An MP4 video is drawn on top of the MP3:
+     a still background, a ring that moves with the voice, and live
+     captions. Optional mode: one still card per chapter.
+  7. It also writes a thumbnail JPG, an SRT, a description, and tags.
+
+Engines, set by the person running the app, not by markup in the file:
+
+  piper:en_US-joe-medium     local Piper. One plain voice for the whole
+                             book. No emotion controls.
+  kokoro:bm_george           local Kokoro. Also one plain voice.
+                             Other Kokoro voices exist (am_michael,
+                             af_heart, hm_omega) but the file cannot
+                             switch voice mid-book.
+  edge:en-US-AndrewMultilingualNeural
+                             Microsoft Edge, online. Still plain text.
+                             Edge can do Urdu and Hindi
+                             (ur-PK-AsadNeural, hi-IN-MadhurNeural)
+                             but these three books are English.
+
+Speed is one number for the whole book (about 0.5 to 2.0). You cannot
+mark one paragraph slow and the next fast.
+
+There is no emotion track. You cannot mark a line whispered, angry,
+crying, or scared. The voice does not read SSML. It does not read
+stage directions. Emotion is carried only by the words that are already
+in the novel and by normal punctuation.
+
+
+THE SECOND PASS (WHY YOUR MARKUP GETS DESTROYED)
+------------------------------------------------
+
+After you return the file, the app runs it through a cleaner before
+the voice speaks. That cleaner will:
+
+  - Turn an em dash, or two hyphens (--), into a comma.
+  - Delete these characters wherever they appear: [ ] { } < > | *
+  - Turn Mr. into Mister, Mrs. into Missus, Dr. into Doctor,
+    St. into Saint when a name follows, Prof. into Professor.
+  - Turn a word of four or more CAPITAL letters into Title Case
+    (DRACULA becomes Dracula). Roman numerals are left alone.
+  - Collapse repeated spaces and spaces before punctuation.
+
+So if you add any of the following, it will be deleted or spoken as
+garbage. Do not add them:
+
+  [sad]  [pause]  [whisper]  (softly)  *emphasis*
+  <break time="1s"/>  <prosody>  any other SSML or XML
+  **bold**  _italic_  markdown links
+  ALL CAPS shouting
+  emoji
+
+A previous edit removed colons. That broke the reading. Do not do it
+again. The rules for punctuation are below.
+
+
+PUNCTUATION YOU MUST KEEP
+-------------------------
+
+Period .     Ends a sentence. The app splits captions and, on Kokoro
+             and Edge, speech chunks at the period. Keep it.
+
+Question ?   Ends a sentence. The voice lifts. Keep it.
+
+Exclamation !  Ends a sentence. Keep it. Do not sprinkle new ones in.
+
+Comma ,      A short pause. Also a place where a caption may break
+             when a sentence is longer than about 180 characters.
+             Keep the author's commas.
+
+Semicolon ;  A pause. Also a legal caption break. Keep it.
+
+Colon :      A pause, not the end of a sentence. Also a legal caption
+             break. KEEP EVERY COLON.
+
+             This is the mistake that ruined the last pass. A line like
+
+               my hopes fluctuate, and my spirits are often depressed.
+               I am about to proceed on a long and difficult voyage,
+               the emergencies of which will demand all my fortitude:
+               I am required not only to raise the spirits of others
+
+             must keep the colon. Deleting it glues two clauses into
+             one breath and removes a caption break.
+
+             Also keep colons in times, labels, and dialogue leads
+             ("Jonathan Harker's Journal:", "he said:"). If a colon is
+             only there because a heading was pasted into a paragraph,
+             you may turn that one into a period. Do not hunt colons.
+
+Quotation marks   Keep them around spoken dialogue. Straight "quotes"
+                  are safer than fancy ones. Do not delete the quotes
+                  and do not turn dialogue into reported speech.
+
+Apostrophes  Keep them. father's, don't, Harker's. Do not strip them.
+
+Ellipsis     Prefer one single ellipsis character (…) or one period.
+             Three dots in a row (...) get split as three sentence
+             endings and the voice stumbles. If you see ..., replace
+             that one cluster with a single period or a single ….
+
+
+CHAPTER LINES
+-------------
+
+A chapter line is a line by itself that starts with "# " (hash, space).
+The words after that are spoken as the chapter title. Keep them short
+enough to say in one breath, ideally under 80 characters.
+
+Good:
+
+  # Chapter One. Jonathan Harker's Journal
+
+Bad:
+
+  # CHAPTER ONE: JONATHAN HARKER'S JOURNAL -- continued!!
+  ## Chapter One
+  Chapter One
+  **Chapter One**
+
+Rules:
+
+  - Use one hash, then a space. Never ## or ###. A double hash becomes
+    its own extra chapter.
+  - One chapter heading, then a blank line, then the prose.
+  - Do not merge chapters. Do not split one chapter into many unless
+    the heading is broken (see the repair list).
+  - Do not add a table of contents. The app builds the chapter list
+    from these lines.
+  - Spell titles the way a person says them. In a heading the app does
+    NOT expand Dr. or Mr., so write Doctor and Mister in headings.
+
+    Change "Dr. Seward's Diary" to "Doctor Seward's Diary".
+    Change "JOURNAL--continued" to "Journal, continued".
+    The double hyphen would be spoken, or, if the cleaner touches it
+    later, turned into a comma in the wrong place. Write the comma
+    yourself so the heading is already speakable.
+
+  - Headings are spoken. Do not put a heading that is only a number,
+    a date stamp, or a joke.
+
+
+PARAGRAPHS
+----------
+
+Paragraphs are blocks of prose separated by one blank line.
+Do not put a blank line after every sentence. That makes hundreds of
+tiny chapters-of-silence and a choppy voice.
+Do not glue the whole chapter into one paragraph either. Keep the
+paragraph breaks that are already there.
+
+
+WHAT YOU ARE ALLOWED TO CHANGE
+------------------------------
+
+Only repairs that stop the voice saying nonsense. Examples that are
+already in these files and should be fixed:
+
+  1. Broken years. The cleaner once turned a double hyphen into a comma,
+     so Frankenstein has lines like:
+
+        Saint Petersburgh, Dec. 11th, 17,.
+        Archangel, 28th March, 17,.
+
+     The novel printed the year as 17-- on purpose (the year is blank).
+     Repair the sense without inventing a year:
+
+        Saint Petersburg, December the eleventh, year left blank.
+        Archangel, the twenty-eighth of March, year left blank.
+
+     Search the file for ",." and for a dangling comma that used to be
+     a dash. Repair those. Do not invent plot.
+
+  2. Headings that contain "--" or the word JOURNAL in all caps.
+     Make them speakable, as described above.
+
+  3. Leftover Gutenberg noise if any survived: the words
+     "Illustration", a lone footnote number, "[deleted]", a line that
+     is only underscores, or a line of page furniture.
+     Delete the noise. Do not delete the sentence it was attached to.
+
+  4. A word the voice will misread, repaired by a normal respelling
+     that still means the same thing:
+        Dec.      -> December
+        11th      -> the eleventh
+        St.       -> Saint   (in a place name or a saint's name)
+        Mr.       -> Mister
+        Mrs.      -> Missus
+        Dr.       -> Doctor
+        No.       -> Number   (only when it means a number, not the word no)
+        etc.      -> and so on
+        e.g.      -> for example
+        i.e.      -> that is
+     Do this in prose and in headings.
+
+  5. A sentence with no ending period at the end of a paragraph.
+     Add the period so the voice does not run into the next paragraph.
+
+That is the whole list. If a sentence is old-fashioned but grammatical,
+leave it. Mary Shelley, Bram Stoker, and Oscar Wilde stay in their
+own words.
+
+
+WHAT YOU MUST NOT CHANGE
+------------------------
+
+  - Do not summarise. Do not cut scenes, letters, diaries, or descriptions.
+  - Do not add introductions, recaps, "in this chapter", morals,
+    jokes, modern comments, or author biography inside the book.
+  - Do not add sound effects, music cues, or narrator asides.
+  - Do not reorder chapters.
+  - Do not replace a long sentence with a shorter one of your own.
+  - Do not remove colons, semicolons, commas, question marks,
+    exclamation marks, or quotation marks as a style cleanup.
+  - Do not convert the book to a bullet list, a table, JSON, or HTML.
+  - Do not translate. These three stay in English.
+  - The word count of each file must stay within about 2 percent of
+    the original, aside from the small repairs above. If your file is
+    much shorter, you deleted the book. Put it back.
+
+
+INTRODUCTION AND CLOSING
+------------------------
+
+The files as sent already start with "# Introduction" and end with
+"# Closing". Those two blocks were added by the app.
+
+Delete those two blocks in your output, and delete only those blocks:
+
+  - Delete from the first line through the blank line after
+    "Sit back, relax, and enjoy."
+  - Delete the final "# Closing" heading and the thank-you paragraph
+    under it.
+
+The app will add a fresh Introduction and Closing when the audiobook
+is built. If you leave them in, the listener hears the introduction
+twice and the closing twice.
+
+Do not write a new introduction of your own. The first line of your
+file must be the first real chapter heading, for example:
+
+  # Letter One
+
+  # Chapter One. Jonathan Harker's Journal
+
+  # Chapter One
+
+
+OUTPUT
+------
+
+For each book, return one UTF-8 text file.
+
+  - Same chapter count as the source, after the Introduction and
+    Closing blocks are removed.
+  - Unix or Windows line endings are both fine.
+  - No byte-order mark needed.
+  - No markdown fence around the book.
+  - No comment at the top. The first line is a chapter heading.
+
+Before you finish, check:
+
+  [ ] Colons are still in the file. Count them. If the count dropped
+      sharply, you made the old mistake. Restore them.
+  [ ] No line contains [ ] { } < > | * or a double hyphen.
+  [ ] No SSML, no emotion tags, no stage directions.
+  [ ] Every chapter heading is one line starting with "# ".
+  [ ] "# Introduction" and "# Closing" are gone.
+  [ ] The story was not shortened.
+
+
+FOR THE PERSON RUNNING THE APP (DO NOT READ THIS ALOUD)
+-------------------------------------------------------
+
+After the polished file is back, build the audiobook from the project
+folder with:
+
+  .\.venv\Scripts\python scripts\make_book.py --text book-scripts\dracula-bram-stoker-full-audiobook.txt --title "Dracula" --author "Bram Stoker" --kind public-domain --voice piper:en_US-joe-medium --plan-only
+
+--plan-only prints the chapter list and the time estimate. It does not
+speak. If the chapter list looks right, run the same command without
+--plan-only.
+
+Use --kind public-domain for these three. That makes the spoken opening
+say "complete, unabridged audiobook". Do not use --kind summary and do
+not use --kind original.
+
+Swap the filename, title, and author for Frankenstein (Mary Shelley)
+and The Picture of Dorian Gray (Oscar Wilde).
+
+Dracula is about 18 hours of speech. YouTube allows about 12 hours per
+upload, so that video has to be split into two parts after it is made.
+Frankenstein is about 8 hours. Dorian Gray is about 9 hours.
+
+A long animated 1080p video is huge. For these books, add
+--height 720 or --video cards so the render fits on the disk.
+The MP3 is the audiobook. The MP4 is the picture track on top of it.
+There is no PDF.

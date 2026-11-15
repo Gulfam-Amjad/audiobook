@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Audiobook - AI Video Generation Manager{% endblock %}
+{% block heading %}Audiobook{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Paste a script or upload a text file, pick a voice, and get one MP3. Long
+    books are spoken chapter by chapter in the background, so you can close
+    this page and come back.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="/files" class="button">Files</a>
+  <a href="/voices" class="button">Voices</a>
+{% endblock %}
+
+{% block content %}
+  <div class="panel mb">
+    <h2>New audiobook</h2>
+    {% if voices %}
+      <form hx-post="/audiobooks" hx-target="#audiobook-list" hx-swap="outerHTML"
+            hx-encoding="multipart/form-data"
+            x-data="audiobookForm({{ voices | tojson | forceescape }})">
+        <div class="grid grid-2">
+          <label>
+            Title
+            <input type="text" name="title" maxlength="80" placeholder="The Laws of Human Nature - summary">
+          </label>
+          <label>
+            Or upload a .txt file
+            <input type="file" name="script_file" accept=".txt,text/plain" @change="onFile($event)">
+          </label>
+        </div>
+
+        <label>
+          Script
+          <textarea name="script" rows="12" x-model="script"
+                    placeholder="# Chapter one&#10;&#10;Paste the text here. A line starting with # begins a new chapter."></textarea>
+        </label>
+        <p class="tiny muted">
+          A line starting with <code>#</code> starts a new chapter. Without headings the text is
+          cut into chapters of about {{ '{:,}'.format(max_chapter_chars) }} characters (roughly ten
+          minutes of speech). If you upload a file, it is used instead of the box.
+        </p>
+
+        <div class="grid grid-2">
+          <label>
+            Language
+            <select x-model="language" @change="pickFirst()">
+              {% for row in languages %}
+                <option value="{{ row.code }}">{{ row.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Speaking speed
+            <input type="number" name="speed" min="0.5" max="2" step="0.05" x-model.number="speed">
+            <span class="row small">
+              <button type="button" class="small" @click="speed = 0.85">Slower speech</button>
+              <button type="button" class="small" @click="speed = 1.0">Normal</button>
+              <button type="button" class="small" @click="speed = 1.15">Quicker speech</button>
+            </span>
+          </label>
+        </div>
+        <p class="tiny muted">Speaking speed changes how fast the words are said. It does not make Kokoro finish a book any sooner in a useful way. Pick Piper when you want the file done quickly.</p>
+
+        <input type="hidden" name="voice_id" :value="voiceId">
+        <div class="row mb">
+          <h3 style="margin:0">Voices</h3>
+          {% include "partials/book_video_voice_status.html" %}
+        </div>
+        <template x-for="group in groups" :key="group.id">
+          <div class="mb">
+            <div class="row small">
+              <b x-text="group.title"></b>
+              <span class="tiny muted" x-text="group.note"></span>
+            </div>
+            <div class="bv-voices">
+              <template x-for="v in group.voices" :key="v.id">
+                <div class="bv-voice" role="button" tabindex="0" :aria-label="v.name + ', ' + group.title"
+                     :class="{ 'selected': String(v.id) === voiceId }" @click="voiceId = String(v.id)">
+                  <div class="row">
+                    <b x-text="v.name"></b>
+                    <span class="badge" :class="v.engine === 'piper' ? 'good' : (v.engine === 'kokoro' ? 'warn' : 'neutral')" x-text="v.engine_label"></span>
+                    <span x-show="v.gender" class="badge neutral" x-text="v.gender"></span>
+                  </div>
+                  <div class="tiny muted" x-text="v.speed_note"></div>
+                  <template x-if="v.demo">
+                    <audio controls preload="none" :src="'/book-video/voice-demo/' + v.demo" @click.stop></audio>
+                  </template>
+                  <div class="tiny muted" x-show="!v.demo">No sample yet. Use “Make the missing demos” above, then reload.</div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="voice && voice.engine === 'kokoro'">
+          <div class="banner warn small">Kokoro sounds more natural and is much slower on this laptop. A full book that Piper speaks in about an hour can take most of a day with Kokoro.</div>
+        </template>
+
+        <p class="small" x-show="estimate" x-text="estimate"></p>
+
+        <button type="submit" class="primary">Make MP3</button>
+        <p class="tiny muted">
+          Saved under <code>{{ audiobooks_dir }}</code>. One audiobook is made at a time.
+        </p>
+      </form>
+    {% else %}
+      <div class="banner warn">
+        No voice that can narrate is installed yet.
+        <a href="/voices">Install one on the Voices page</a>, then come back.
+      </div>
+    {% endif %}
+  </div>
+
+  {% include "partials/audiobook_list.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function audiobookForm(voices) {
+    return {
+      voices: voices,
+      language: '',
+      voiceId: '',
+      speed: 1.0,
+      script: '',
+      fileChars: 0,
+      init() {
+        var joe = voices.find(function (v) { return v.engine === 'piper' && v.name === 'en_US-joe-medium'; });
+        var american = voices.find(function (v) { return v.engine === 'piper' && String(v.language).indexOf('en_US') === 0; });
+        var fast = joe || american || voices.find(function (v) { return v.engine === 'piper'; });
+        var first = fast || voices.find(function (v) { return v.is_default; }) || voices[0];
+        if (first) {
+          this.language = first.language;
+          this.voiceId = String(first.id);
+        }
+      },
+      get filtered() {
+        var lang = this.language;
+        return this.voices.filter(function (v) { return v.language === lang; });
+      },
+      get groups() {
+        var titles = {
+          piper: 'Fast work',
+          edge: 'Fast, needs the internet',
+          kokoro: 'Slow on this laptop'
+        };
+        var self = this;
+        return ['piper', 'edge', 'kokoro'].map(function (engine) {
+          var list = self.filtered.filter(function (v) { return v.engine === engine; });
+          return {
+            id: engine,
+            title: titles[engine],
+            note: list.length ? list[0].speed_note : '',
+            voices: list
+          };
+        }).filter(function (group) { return group.voices.length; });
+      },
+      get voice() {
+        var id = this.voiceId;
+        return this.voices.find(function (v) { return String(v.id) === id; }) || null;
+      },
+      pickFirst() {
+        var id = this.voiceId;
+        var list = this.filtered;
+        if (!list.find(function (v) { return String(v.id) === id; })) {
+          var fast = list.find(function (v) { return v.engine === 'piper'; });
+          this.voiceId = fast ? String(fast.id) : (list.length ? String(list[0].id) : '');
+        }
+      },
+      onFile(event) {
+        var file = event.target.files[0];
+        var self = this;
+        if (!file) { this.fileChars = 0; return; }
+        file.text().then(function (text) { self.fileChars = text.length; });
+      },
+      get estimate() {
+        var chars = this.fileChars || this.script.length;
+        var v = this.voice;
+        if (!v || !chars) { return ''; }
+        var speed = this.speed > 0 ? this.speed : 1;
+        var audio = chars / (v.cps * speed);
+        var text = 'About ' + this.fmt(audio) + ' of audio';
+        if (v.factor) {
+          text += ', taking about ' + this.fmt(audio * v.factor) + ' to make on this laptop.';
+        } else {
+          text += '. Time to make it depends on your internet connection.';
+        }
+        return text;
+      },
+      fmt(seconds) {
+        var minutes = Math.max(1, Math.round(seconds / 60));
+        if (minutes < 60) { return minutes + ' min'; }
+        var hours = Math.floor(minutes / 60);
+        var rest = minutes % 60;
+        return hours + ' h' + (rest ? ' ' + rest + ' min' : '');
+      }
+    };
+  }
+</script>
+{% endblock %}

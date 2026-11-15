@@ -1,0 +1,86 @@
+{% macro file_rows(group) %}
+  {% for file in group.files %}
+    <tr>
+      <td>
+        {{ file.name }}
+        <div class="tiny muted">{{ file.modified }} UTC &middot; {{ file.size_bytes | filesize }}</div>
+      </td>
+      <td>
+        {% if file.kind == 'audio' %}
+          <audio controls preload="none" src="/files/media?path={{ file.rel | urlencode }}" style="max-width: 320px"></audio>
+        {% elif file.kind == 'video' %}
+          <video controls preload="metadata" src="/files/media?path={{ file.rel | urlencode }}" style="max-width: 480px; width: 100%"></video>
+        {% elif file.kind == 'image' %}
+          <a href="/files/media?path={{ file.rel | urlencode }}" target="_blank" rel="noopener">
+            <img src="/files/media?path={{ file.rel | urlencode }}" alt="{{ file.name }}" style="max-height: 72px">
+          </a>
+        {% else %}
+          <a href="/files/media?path={{ file.rel | urlencode }}" target="_blank" rel="noopener" class="small">View</a>
+        {% endif %}
+      </td>
+      <td class="right">
+        <a class="button small" href="/files/download?path={{ file.rel | urlencode }}">Download</a>
+      </td>
+    </tr>
+  {% endfor %}
+{% endmacro %}
+
+<div id="files-body">
+  <div class="panel mb">
+    <h2>Where the files are</h2>
+    <div class="row small">
+      <code class="bv-path" id="data-root">{{ data_root }}</code>
+      <button type="button" class="small" onclick="copyText('data-root', this)">Copy path</button>
+      <button class="small" hx-post="/files/open" hx-vals='{"path": ""}' hx-swap="none">Open this folder</button>
+    </div>
+    <p class="tiny muted">Every audiobook and film is inside this folder. A book's MP4 is named audiobook.mp4 inside its own folder.</p>
+  </div>
+
+  <div class="panel mb">
+    <h2>Audiobooks</h2>
+    {% if audiobooks %}
+      {% for book in audiobooks %}
+        <div class="mb">
+          <div class="spread">
+            <div>
+              <strong>{{ book.title }}</strong>
+              <span class="tiny muted">
+                {{ book.detail }}{% if book.duration_s %} &middot; {{ book.duration_s | duration }}{% endif %}
+              </span>
+              <div class="tiny"><code class="bv-path">{{ book.folder_abs }}</code></div>
+            </div>
+            <button class="small" hx-post="/files/open" hx-vals='{"path": {{ book.folder_rel | tojson | forceescape }}}' hx-swap="none">Open folder</button>
+          </div>
+          <div class="table-wrap">
+            <table><tbody>{{ file_rows(book) }}</tbody></table>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No finished audiobooks yet. Make one on the <a href="/audiobooks">Audiobook</a> page.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Project videos</h2>
+    <p class="tiny muted">The newest finished render of each project. Working files (clips, pieces, the mix) are left out.</p>
+    {% if projects %}
+      {% for project in projects %}
+        <div class="mb">
+          <div class="spread">
+            <div>
+              <strong>{{ project.title }}</strong>
+              <span class="tiny muted">{{ project.detail }}</span>
+            </div>
+            <button class="small" hx-post="/files/open" hx-vals='{"path": {{ project.folder_rel | tojson | forceescape }}}' hx-swap="none">Open folder</button>
+          </div>
+          <div class="table-wrap">
+            <table><tbody>{{ file_rows(project) }}</tbody></table>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No finished project videos yet.</p>
+    {% endif %}
+  </div>
+</div>

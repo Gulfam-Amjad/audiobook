@@ -1,0 +1,186 @@
+{% for p in providers %}
+  <div class="panel panel-tight mb" x-data="{ open: false }">
+    <div class="spread">
+      <div style="min-width:0">
+        <strong>{{ p.name }}</strong>
+        <span class="badge {{ p.status_badge }}">{{ p.status_label }}</span>
+        <span class="badge neutral" style="text-transform:none">{{ p.kind_label }}</span>
+        {% if p.enabled %}
+          <span class="badge good">enabled</span>
+        {% else %}
+          <span class="badge neutral">off</span>
+        {% endif %}
+        {% if p.kind == 'api' and not p.caps.endpoint_verified %}
+          <span class="badge warn" title="The endpoint and payload were inferred from
+                 incomplete documentation and have not been confirmed.">endpoint inferred</span>
+        {% endif %}
+        <div class="muted small" style="margin-top:4px">{{ p.status_explanation }}</div>
+      </div>
+
+      <div class="row nowrap">
+        <span class="mono tiny muted">{{ p.cheapest_label }}</span>
+        <form hx-post="/providers/{{ p.key }}/enabled" hx-target="#provider-table">
+          <input type="hidden" name="enabled" value="{{ 'false' if p.enabled else 'true' }}">
+          <button type="submit" class="btn-small {{ '' if p.enabled else 'btn-primary' }}">
+            {{ 'Disable' if p.enabled else 'Enable' }}
+          </button>
+        </form>
+        <button class="btn-small" @click="open = !open"
+                x-text="open ? 'Hide details' : 'Details'"></button>
+      </div>
+    </div>
+
+    {% if p.blockers %}
+      <div class="muted tiny" style="margin-top:6px">
+        <strong>Cannot receive jobs:</strong> {{ p.blockers | join(' ') }}
+      </div>
+    {% endif %}
+
+    <div x-show="open" x-cloak style="margin-top:12px">
+      <div class="grid grid-2">
+        <div>
+          <h3 style="margin:0 0 6px">Free allowance</h3>
+          <p class="small muted" style="margin:0">{{ p.caps.free_tier_note }}</p>
+
+          <h3 style="margin:12px 0 6px">What the terms allow</h3>
+          <p class="small muted" style="margin:0">{{ p.caps.automation_note }}</p>
+
+          {% if p.caps.integration_notes %}
+            <h3 style="margin:12px 0 6px">Notes on this adapter</h3>
+            <ul class="small muted" style="margin:0; padding-left:18px">
+              {% for note in p.caps.integration_notes %}<li>{{ note }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+
+          <h3 style="margin:12px 0 6px">Limits</h3>
+          <p class="small muted" style="margin:0">
+            Up to {{ p.caps.default_concurrency }} at once.
+            {% if p.caps.default_requests_per_minute %}
+              {{ p.caps.default_requests_per_minute }} requests/minute.
+            {% endif %}
+            Status checked no more than every {{ p.caps.min_poll_interval_s }}s.
+            {% if p.caps.result_url_ttl_hours %}
+              Result links expire after {{ p.caps.result_url_ttl_hours }}h, so downloads
+              are not deferred.
+            {% endif %}
+          </p>
+          {% if p.caps.image.max_bytes or p.caps.image.max_side_px %}
+            <p class="small muted" style="margin:6px 0 0">
+              Images:
+              {% if p.caps.image.max_bytes %}max {{ p.caps.image.max_bytes | filesize }},{% endif %}
+              {% if p.caps.image.min_side_px %}min {{ p.caps.image.min_side_px }}px,{% endif %}
+              {% if p.caps.image.max_side_px %}max {{ p.caps.image.max_side_px }}px,{% endif %}
+              {{ p.caps.image.formats | sort | join(', ') }}.
+            </p>
+          {% endif %}
+          {% if p.caps.image.notes %}
+            <p class="tiny muted" style="margin:4px 0 0">{{ p.caps.image.notes }}</p>
+          {% endif %}
+
+          <p class="tiny muted" style="margin:12px 0 0">
+            Facts checked {{ p.caps.checked_on }}.
+            {% if p.caps.docs_url %}<a href="{{ p.caps.docs_url }}" target="_blank" rel="noopener">Docs</a>{% endif %}
+            {% if p.caps.pricing_url %}&middot; <a href="{{ p.caps.pricing_url }}" target="_blank" rel="noopener">Pricing</a>{% endif %}
+            {% if p.caps.signup_url %}&middot; <a href="{{ p.caps.signup_url }}" target="_blank" rel="noopener">Sign up</a>{% endif %}
+          </p>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 6px">Models</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Model</th><th>Length</th><th>Resolution</th><th class="right">Price</th></tr>
+              </thead>
+              <tbody>
+                {% for m in p.models %}
+                  <tr>
+                    <td>
+                      <div class="mono tiny">{{ m.spec.id }}</div>
+                      <div class="muted tiny">{{ m.spec.label }}</div>
+                    </td>
+                    <td class="tiny nowrap">
+                      {% if m.spec.durations %}{{ m.spec.durations | join('s, ') }}s{% else %}<span class="muted">any</span>{% endif %}
+                    </td>
+                    <td class="tiny">
+                      {% if m.spec.resolutions %}{{ m.spec.resolutions | join(', ') }}{% else %}<span class="muted">any</span>{% endif %}
+                    </td>
+                    <td class="right tiny nowrap">
+                      {{ m.price_label }}
+                      {% if m.confidence == 'estimated' %}
+                        <div class="muted tiny">estimate</div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% if m.price_detail %}
+                    <tr><td colspan="4" class="tiny muted">{{ m.price_detail }}</td></tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="margin:12px 0 6px">Accounts</h3>
+          {% if p.accounts %}
+            {% for account in p.accounts %}
+              <div class="spread" style="margin-bottom:8px">
+                <div style="min-width:0">
+                  <span class="small">{{ account.label }}</span>
+                  <span class="badge {{ account.auth_status | tone }}">
+                    {{ account.auth_status | pretty_status }}
+                  </span>
+                  {% if account.paid_authorized %}
+                    <span class="badge warn">paid authorised</span>
+                  {% endif %}
+                  {% if account.last_auth_message %}
+                    <div class="muted tiny">
+                      {{ account.last_auth_message }}
+                      {% if account.last_auth_check_at %}
+                        ({{ account.last_auth_check_at | when }})
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+                {% if p.can_test %}
+                  <button class="btn-small nowrap"
+                          hx-post="/providers/accounts/{{ account.id }}/test"
+                          hx-target="#provider-table">
+                    Test connection
+                  </button>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <p class="tiny muted" style="margin:0">
+              A connection test only asks whether the credentials are accepted. It
+              generates nothing and spends nothing.
+            </p>
+          {% elif p.kind == 'manual' %}
+            <p class="small muted" style="margin:0">
+              Manual assist has no account to authenticate. Site credits are tracked on
+              the <a href="/accounts">Credits</a> screen.
+            </p>
+          {% else %}
+            <p class="small muted" style="margin:0">
+              No account yet. Add
+              {{ p.caps.required_credentials | join(' and ') }} to <code>.env</code> and
+              restart, and one will be created.
+              {% if p.caps.optional_credentials %}
+                <br>Optional: {{ p.caps.optional_credentials | join(', ') }}.
+              {% endif %}
+            </p>
+          {% endif %}
+
+          <h3 style="margin:12px 0 6px">Priority</h3>
+          <form class="row" hx-post="/providers/{{ p.key }}/priority" hx-target="#provider-table">
+            <input type="number" name="priority" min="1" max="999" style="width:90px"
+                   value="{{ p.row.priority if p.row else 100 }}">
+            <button type="submit" class="btn-small">Save</button>
+            <span class="tiny muted">Lower is tried first.</span>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="empty">No adapters loaded. Check Diagnostics.</div>
+{% endfor %}

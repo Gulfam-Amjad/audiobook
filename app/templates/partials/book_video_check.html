@@ -1,0 +1,23 @@
+{% if check.empty %}
+  <p class="muted small">Paste a script to see its length, chapters and how long it takes to make.</p>
+{% else %}
+  <div class="bv-check">
+    <div class="row">
+      <span class="badge info">{{ '{:,}'.format(check.words) }} words</span>
+      <span class="badge info">about {{ check.audio }} of audio</span>
+      <span class="badge neutral">about {{ check.work }} to make</span>
+      <span class="badge neutral">{{ check.chapters | length }} chapters</span>
+      <span class="badge {{ 'good' if check.free_gb > check.need_gb + 1 else 'bad' }}">{{ check.free_gb }} GB free</span>
+      {% if not check.animated %}<span class="badge warn">chapter-card video</span>{% endif %}
+    </div>
+    <p class="tiny muted">Voice about {{ check.speak }}, drawing about {{ check.draw }}. Estimates from this laptop's measured speed.</p>
+    {% for e in check.errors %}<div class="banner bad small">{{ e }}</div>{% endfor %}
+    {% for w in check.warnings %}<div class="banner warn small">{{ w }}</div>{% endfor %}
+    {% if check.chapters %}
+      <details>
+        <summary class="small">Chapters (the YouTube chapter list)</summary>
+        <ol class="small">{% for t in check.chapters %}<li>{{ t }}</li>{% endfor %}</ol>
+      </details>
+    {% endif %}
+  </div>
+{% endif %}

@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Book Video - AI Video Generation Manager{% endblock %}
+{% block heading %}Book Video{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Paste a script, pick a cover, a look and a voice, and get a YouTube-ready video with a ring that
+    pulses with the voice and live word-by-word captions. Everything runs on this laptop through the
+    overnight queue, so you can close this page; a stopped book carries on from where it was.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a href="#bv-jobs" class="button">Jobs</a>
+  <a href="/files" class="button">Files</a>
+{% endblock %}
+
+{% block content %}
+{% include "partials/book_video_jobs.html" %}
+
+<form id="bv-form" hx-post="/book-video/create" hx-target="#bv-jobs" hx-swap="outerHTML"
+      x-data="bookVideo({{ voices | tojson | forceescape }}, {{ templates | tojson | forceescape }}, {{ saved | tojson | forceescape }})"
+      @cover-changed.window="coverRel = $event.detail.rel">
+
+  <div class="bv-layout">
+  <div class="bv-main">
+
+  {# 1. Script ------------------------------------------------------------------------------ #}
+  <div class="panel mb">
+    <h2><span class="bv-step">1</span> Script</h2>
+    <div class="grid grid-3">
+      <label>Title
+        <input type="text" name="title" maxlength="90" required x-model="title" placeholder="Atomic Habits">
+      </label>
+      <label>Author
+        <input type="text" name="author" maxlength="80" x-model="author" placeholder="James Clear">
+      </label>
+      <label>Kind
+        <select name="kind" x-model="kind">
+          <option value="summary">Book summary</option>
+          <option value="public-domain">Full audiobook (public domain)</option>
+          <option value="original">Original story</option>
+        </select>
+      </label>
+    </div>
+    <label>
+      <span class="row">Script
+        <span class="muted small">or load a file:</span>
+        <input type="file" accept=".txt,.md,text/plain,text/markdown" @change="loadFile($event)" class="small">
+      </span>
+      <textarea id="bv-script" name="script" rows="14" x-model="script"
+                placeholder="# The First Idea&#10;&#10;Paste the script here. A line starting with # begins a new chapter (it becomes a YouTube chapter and a heading in the video)."></textarea>
+    </label>
+    <div class="grid grid-3">
+      <label>Language
+        <select name="language" x-model="language" @change="pickVoiceFor()">
+          {% for code in languages %}<option value="{{ code }}">{{ language_names.get(code, code) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Channel name (spoken in the opening and closing)
+        <input type="text" name="channel" maxlength="60" x-model="channel">
+      </label>
+      <label>About the book (optional, for the description)
+        <input type="text" name="about" maxlength="600" placeholder="One paragraph about the book">
+      </label>
+    </div>
+    <div id="bv-check" hx-post="/book-video/check" hx-include="#bv-form"
+         hx-trigger="load, input delay:900ms from:#bv-form, change from:#bv-form, script-loaded from:body"
+         hx-swap="innerHTML">
+      <p class="muted small">Checking…</p>
+    </div>
+  </div>
+
+  {# 2. Cover --------------------------------------------------------------------------------- #}
+  <div class="panel mb">
+    <h2><span class="bv-step">2</span> Cover picture</h2>
+    <div class="grid grid-2">
+      <div>
+        {% include "partials/book_video_cover.html" %}
+      </div>
+      <div>
+        <div class="row mb">
+          <label class="button small">Upload a picture
+            <input type="file" name="cover_file" accept="image/*" hidden
+                   hx-post="/book-video/cover/upload" hx-encoding="multipart/form-data"
+                   hx-trigger="change" hx-target="#bv-cover" hx-swap="outerHTML" hx-include="this">
+          </label>
+          <button type="button" class="small" hx-get="/partials/book-video/library" hx-target="#bv-picks">
+            From the Image Library
+          </button>
+          <button type="button" class="small" hx-post="/book-video/cover/clear" hx-target="#bv-cover"
+                  hx-swap="outerHTML">No picture</button>
+        </div>
+        <div class="row">
+          <input type="text" name="art_query" placeholder="Search Wikimedia Commons, e.g. Marcus Aurelius bust"
+                 style="flex:1" @keydown.enter.prevent="$refs.searchButton.click()">
+          <button type="button" class="small" x-ref="searchButton" hx-post="/book-video/cover/search"
+                  hx-include="[name='art_query']" hx-target="#bv-picks">Search</button>
+        </div>
+        <p class="tiny muted">Commons pictures are free to use and their credit is added to the description.
+          If you search but pick none, the best match is fetched when the video is made.</p>
+      </div>
+    </div>
+    <div id="bv-picks"></div>
+  </div>
+
+  {# 3. Template ------------------------------------------------------------------------------ #}
+  <div class="panel mb">
+    <h2><span class="bv-step">3</span> Template</h2>
+    {% if missing_fonts %}
+      <div class="banner warn small">Some template fonts are not downloaded yet ({{ missing_fonts | join(', ') }});
+        those templates use Inter until they are.</div>
+    {% endif %}
+    <input type="hidden" name="template" :value="template">
+    <div class="bv-gallery">
+      <template x-for="t in templates" :key="t.id">
+        <button type="button" class="bv-card" :class="{ 'selected': template === t.id }" @click="pickTemplate(t)">
+          <img :src="previewUrl(t.id)" :alt="t.name + ' template'" loading="lazy">
+          <span class="bv-card-text">
+            <b x-text="t.name"></b>
+            <span class="tiny muted" x-text="t.genres"></span>
+          </span>
+        </button>
+      </template>
+    </div>
+    <p class="small" x-text="currentTemplate ? currentTemplate.blurb : ''"></p>
+    <details>
+      <summary class="small">Fine-tune the look</summary>
+      <div class="grid grid-4">
+        <label>Ring
+          <select name="style" x-model="style">
+            <option value="">Template's own</option>
+            {% for s in styles %}<option value="{{ s }}">{{ s | title }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Accent colour
+          <span class="row">
+            <input type="color" :value="accent || (currentTemplate ? currentTemplate.accent : '#ffb347')"
+                   @input="accent = $event.target.value">
+            <button type="button" class="small" @click="accent = ''" x-show="accent">Reset</button>
+          </span>
+          <input type="hidden" name="accent" :value="accent">
+        </label>
+        <label>Size
+          <select name="height" x-model="height">
+            <option value="1080">1080p (best)</option>
+            <option value="720">720p (about twice as fast)</option>
+          </select>
+        </label>
+        <label>Video
+          <select name="video" x-model="video">
+            <option value="animated">Animated: ring and live captions</option>
+            <option value="cards">Chapter cards (very fast)</option>
+          </select>
+        </label>
+      </div>
+    </details>
+  </div>
+
+  {# 4. Voice ---------------------------------------------------------------------------------- #}
+  <div class="panel mb">
+    <h2><span class="bv-step">4</span> Voice</h2>
+    <input type="hidden" name="voice" :value="voice">
+    <div class="row mb">
+      <label class="row small"><input type="checkbox" x-model="showAll"> Show every voice</label>
+      <label class="row small">Speed
+        <input type="number" name="speed" min="0.5" max="2" step="0.05" x-model.number="speed" style="width:80px">
+      </label>
+      {% include "partials/book_video_voice_status.html" %}
+    </div>
+    <div class="bv-voices">
+      <template x-for="v in shownVoices" :key="v.spec">
+        <div class="bv-voice" :class="{ 'selected': voice === v.spec }" @click="voice = v.spec">
+          <div class="row">
+            <b x-text="v.label"></b>
+            <span class="badge neutral" x-text="v.engine"></span>
+            <span class="badge good" x-show="v.recommended">recommended</span>
+          </div>
+          <div class="tiny muted" x-text="[v.gender, v.accent, v.note].filter(Boolean).join(' · ')"></div>
+          <template x-if="v.demo">
+            <audio controls preload="none" :src="'/book-video/voice-demo/' + v.demo" @click.stop></audio>
+          </template>
+          <div class="tiny muted" x-show="!v.demo">No demo yet</div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  </div>
+
+  {# Make -------------------------------------------------------------------------------------- #}
+  <aside class="bv-side">
+    <div class="panel bv-sticky">
+      <h2>Make it</h2>
+      <img class="bv-side-preview" :src="previewUrl(template)" alt="How the video will look">
+      <p class="small">
+        <b x-text="title || 'Untitled'"></b><br>
+        <span class="muted" x-text="(currentTemplate ? currentTemplate.name : '') + ' · ' + voiceLabel"></span>
+      </p>
+      <label class="small">Folder name (optional)
+        <input type="text" name="name" maxlength="80" :placeholder="(title || 'Book') + ' - ' + language">
+      </label>
+      <button type="submit" name="preview" value="1" class="mb" style="width:100%">
+        Quick preview (about 15 seconds)
+      </button>
+      <button type="submit" name="preview" value="0" class="primary" style="width:100%">Make Video</button>
+      <p class="tiny muted">Both go into the queue below and run one at a time. Previews go first.</p>
+    </div>
+  </aside>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function bookVideo(voices, templates, saved) {
+    return {
+      voices: voices,
+      templates: templates,
+      title: '', author: '', script: '',
+      kind: saved.kind || 'summary',
+      language: saved.language || 'en',
+      channel: saved.channel || '',
+      template: saved.template || 'mindset',
+      style: saved.style || '',
+      accent: saved.accent || '',
+      height: String(saved.height || 1080),
+      video: saved.video || 'animated',
+      voice: saved.voice || '',
+      speed: saved.speed || 1.0,
+      showAll: false,
+      coverRel: '',
+      init() { this.pickVoiceFor(); },
+      get currentTemplate() {
+        var id = this.template;
+        return this.templates.find(function (t) { return t.id === id; }) || null;
+      },
+      get shownVoices() {
+        var lang = this.language, all = this.showAll, current = this.voice;
+        return this.voices.filter(function (v) {
+          return v.language === lang && (all || v.recommended || v.spec === current);
+        });
+      },
+      get voiceLabel() {
+        var spec = this.voice;
+        var v = this.voices.find(function (x) { return x.spec === spec; });
+        return v ? v.label + ' (' + v.engine + ')' : 'default voice';
+      },
+      pickVoiceFor() {
+        var lang = this.language, spec = this.voice;
+        var mine = this.voices.filter(function (v) { return v.language === lang; });
+        if (!mine.find(function (v) { return v.spec === spec; })) {
+          var best = mine.find(function (v) { return v.recommended; }) || mine[0];
+          this.voice = best ? best.spec : '';
+        }
+      },
+      pickTemplate(t) { this.template = t.id; this.style = ''; this.accent = ''; },
+      previewUrl(id) {
+        return '/book-video/template-preview/' + id + (this.coverRel ? '?cover=' + encodeURIComponent(this.coverRel) : '');
+      },
+      loadFile(event) {
+        var file = event.target.files[0], self = this;
+        if (!file) { return; }
+        file.text().then(function (text) {
+          self.script = text;
+          if (!self.title) { self.title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '); }
+          self.$nextTick(function () { document.body.dispatchEvent(new Event('script-loaded')); });
+        });
+      }
+    };
+  }
+  function copyText(id, button) {
+    var el = document.getElementById(id);
+    navigator.clipboard.writeText(el.value || el.textContent).then(function () {
+      var old = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(function () { button.textContent = old; }, 1500);
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Prompts - AI Video Generation Manager{% endblock %}
+{% block heading %}Prompt Templates{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    The default template is used for any image without its own prompt.
+    Tokens in <code>{curly braces}</code> are filled in per image.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div class="grid grid-2">
+    <div class="panel">
+      <h2>New template</h2>
+      <form hx-post="/prompts" hx-target="#prompt-list" hx-swap="innerHTML">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required placeholder="Subtle camera push">
+        </div>
+        <div class="field">
+          <label for="body">Prompt</label>
+          <textarea id="body" name="body" rows="5" required
+                    placeholder="Slow cinematic camera push-in on {stem}. Natural motion, unchanged composition."></textarea>
+        </div>
+        <div class="field">
+          <label for="negative_prompt">Negative prompt (used only where the model supports one)</label>
+          <textarea id="negative_prompt" name="negative_prompt" rows="2"
+                    placeholder="warping, flicker, text, watermark"></textarea>
+        </div>
+        <div class="field">
+          <label for="variables">Custom variables (one <code>key=value</code> per line, or JSON)</label>
+          <textarea id="variables" name="variables" rows="2" placeholder="style=photoreal"></textarea>
+        </div>
+        <div class="check mb">
+          <input type="checkbox" id="make_default" name="make_default" value="true">
+          <label for="make_default">Make this the default prompt</label>
+        </div>
+        <button type="submit" class="btn-primary">Save template</button>
+      </form>
+
+      <hr>
+      <h3>Available tokens</h3>
+      <p class="small muted">
+        {% for token in builtin_tokens %}<code>{{ '{' }}{{ token }}{{ '}' }}</code>{% if not loop.last %} {% endif %}{% endfor %}
+      </p>
+      <p class="tiny muted">
+        An unknown token is left in the prompt untouched rather than blanked, so a
+        typo is visible instead of silently changing what you asked for.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="spread mb">
+        <h2 style="margin:0">Templates</h2>
+        {% if not templates %}
+          <button class="btn-small" hx-post="/prompts/seed-starters" hx-target="#prompt-list">
+            Add starter templates
+          </button>
+        {% endif %}
+      </div>
+      <div id="prompt-list">
+        {% include "partials/prompt_list.html" %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

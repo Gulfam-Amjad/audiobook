@@ -1,0 +1,70 @@
+{% if templates %}
+  {% for template in templates %}
+    <div class="panel panel-tight" style="background: var(--panel-2);" x-data="{ editing: false }">
+      <div class="spread">
+        <div>
+          <strong>{{ template.name }}</strong>
+          {% if template.is_default %}<span class="badge good">default</span>{% endif %}
+        </div>
+        <div class="row">
+          <button class="btn-small" @click="editing = !editing"
+                  x-text="editing ? 'Close' : 'Edit'"></button>
+          {% if not template.is_default %}
+            <button class="btn-small"
+                    hx-post="/prompts/{{ template.id }}/default"
+                    hx-target="#prompt-list">Set default</button>
+            <button class="btn-small btn-danger"
+                    hx-delete="/prompts/{{ template.id }}"
+                    hx-target="#prompt-list"
+                    hx-confirm="Delete '{{ template.name }}'?">Delete</button>
+          {% endif %}
+        </div>
+      </div>
+
+      <p class="small muted" style="margin:7px 0 0; white-space: pre-wrap;">{{ template.body }}</p>
+      {% if template.negative_prompt %}
+        <p class="tiny muted" style="margin:6px 0 0;">
+          <strong>Negative:</strong> {{ template.negative_prompt }}
+        </p>
+      {% endif %}
+      {% if template.variables %}
+        <p class="tiny muted" style="margin:6px 0 0;">
+          <strong>Variables:</strong>
+          {% for key, value in template.variables.items() %}{{ key }}={{ value }}{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+      {% endif %}
+
+      <details style="margin-top:7px">
+        <summary>Preview with example image values</summary>
+        <p class="small mono" style="margin:6px 0 0;">{{ previews[template.id] }}</p>
+      </details>
+
+      <div x-show="editing" x-cloak style="margin-top:10px">
+        <form hx-post="/prompts/{{ template.id }}" hx-target="#prompt-list" hx-swap="innerHTML">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" name="name" value="{{ template.name }}" required>
+          </div>
+          <div class="field">
+            <label>Prompt</label>
+            <textarea name="body" rows="4" required>{{ template.body }}</textarea>
+          </div>
+          <div class="field">
+            <label>Negative prompt</label>
+            <textarea name="negative_prompt" rows="2">{{ template.negative_prompt or '' }}</textarea>
+          </div>
+          <div class="field">
+            <label>Custom variables</label>
+            <textarea name="variables" rows="2">{% for key, value in (template.variables or {}).items() %}{{ key }}={{ value }}
+{% endfor %}</textarea>
+          </div>
+          <button type="submit" class="btn-primary btn-small">Save changes</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty">
+    No templates yet. Write one on the left, or add the starter set.
+  </div>
+{% endif %}

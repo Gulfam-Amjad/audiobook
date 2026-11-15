@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Queue - AI Video Generation Manager{% endblock %}
+{% block heading %}Generation Queue{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Queue state is stored in the database, so closing the browser or stopping the
+    server never loses work.
+  </p>
+{% endblock %}
+
+{% block actions %}
+  <div id="queue-controls">
+    {% include "partials/queue_controls.html" %}
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% if not scheduler_alive %}
+    <div class="banner bad">
+      The scheduler loop is not running. Restart the application; if it persists,
+      check <a href="/diagnostics">Diagnostics</a>.
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Where a job with your default settings could run</h2>
+    <p class="muted small">
+      Default: {{ default_settings.duration_s }}s, {{ default_settings.resolution }},
+      {{ default_settings.aspect_ratio }}. Change these in
+      <a href="/settings">Settings</a>.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th><th>Type</th><th>Model chosen</th>
+            <th class="num">Est. cost</th><th>Status</th><th>Blockers</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in eligibility %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td class="muted small">{{ row.kind }}</td>
+              <td class="mono tiny">
+                {{ row.match.settings.model_id or '-' }}
+                {% if row.match.was_adjusted %}
+                  <div class="muted tiny">{{ row.match.summary() }}</div>
+                {% endif %}
+              </td>
+              <td class="num">
+                {% if row.estimate %}
+                  {{ row.estimate.usd | usd }}
+                  <div class="muted tiny">{{ row.estimate.confidence }}</div>
+                {% else %}
+                  <span class="muted">-</span>
+                {% endif %}
+              </td>
+              <td><span class="badge {{ row.status | tone }}">{{ row.status | pretty_status }}</span></td>
+              <td class="small">
+                {% if row.eligible %}
+                  <span class="badge good">ready</span>
+                {% else %}
+                  <span class="muted">{{ row.blockers | join(' ') }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="spread mb">
+      <h2 style="margin:0">
+        Jobs
+        <span class="muted small">
+          {% for state, count in counts.items() %}{{ count }} {{ state | pretty_status }}{% if not loop.last %} &middot; {% endif %}{% endfor %}
+        </span>
+      </h2>
+      <form class="row" hx-get="/partials/queue/table" hx-target="#queue-table" hx-trigger="change">
+        <select name="status">
+          <option value="">All statuses</option>
+          {% for state in statuses %}
+            <option value="{{ state }}" {{ 'selected' if query.status == state }}>
+              {{ state | pretty_status }}
+            </option>
+          {% endfor %}
+        </select>
+        <select name="provider_key">
+          <option value="">All providers</option>
+          {% for key, provider in providers.items() %}
+            <option value="{{ key }}" {{ 'selected' if query.provider_key == key }}>
+              {{ provider.display_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <div id="queue-table"
+         hx-get="/partials/queue/table{% if query.status %}?status={{ query.status }}{% endif %}"
+         hx-trigger="every 5s"
+         hx-swap="innerHTML">
+      {% include "partials/queue_table.html" %}
+    </div>
+  </div>
+
+  <div id="job-detail"></div>
+{% endblock %}

@@ -1,0 +1,78 @@
+<div class="grid grid-4 mb">
+  <div class="stat">
+    <div class="label">Images</div>
+    <div class="value">{{ stats.images_total }}</div>
+    <div class="hint">{{ stats.images_by_status.get('new', 0) }} not yet queued</div>
+  </div>
+  <div class="stat">
+    <div class="label">Pending jobs</div>
+    <div class="value">{{ stats.jobs_pending }}</div>
+    <div class="hint">{{ stats.jobs_awaiting_manual }} awaiting manual work</div>
+  </div>
+  <div class="stat {{ 'busy' if stats.jobs_running }}">
+    <div class="label">Running</div>
+    <div class="value">{{ stats.jobs_running }}</div>
+    <div class="hint">{{ 'queue paused' if stats.queue_paused else 'queue active' }}</div>
+  </div>
+  <div class="stat good">
+    <div class="label">Clips generated</div>
+    <div class="value">{{ stats.clips_total }}</div>
+    <div class="hint">{{ stats.clips_today }} today</div>
+  </div>
+  <div class="stat {{ 'bad' if stats.jobs_failed else '' }}">
+    <div class="label">Failed jobs</div>
+    <div class="value">{{ stats.jobs_failed }}</div>
+    <div class="hint">
+      {% if stats.jobs_uncertain %}{{ stats.jobs_uncertain }} uncertain{% else %}none uncertain{% endif %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="label">AI motion, total</div>
+    <div class="value">{{ stats.generated_seconds_total | duration }}</div>
+    <div class="hint">
+      {% if stats.clips_without_duration %}
+        floor - {{ stats.clips_without_duration }} clip(s) unmeasured
+      {% else %}
+        measured from the files
+      {% endif %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="label">Spend this month</div>
+    <div class="value">{{ stats.spend_month_usd | usd }}</div>
+    <div class="hint">
+      {% if stats.paid_enabled %}
+        cap {{ stats.monthly_cap_usd | usd }}
+      {% else %}
+        paid generation disabled
+      {% endif %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="label">Providers verified</div>
+    <div class="value">{{ stats.providers_verified }}<span class="muted" style="font-size:15px">/{{ stats.providers_total }}</span></div>
+    <div class="hint">{{ stats.providers_enabled }} enabled</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="spread mb">
+    <h2 style="margin:0">Daily target</h2>
+    <span class="muted small">
+      {{ '%.1f'|format(stats.generated_seconds_today / 60.0) }} of
+      {{ '%.0f'|format(stats.daily_target_minutes) }} minutes today (UTC)
+    </span>
+  </div>
+  <div class="bar {{ 'good' if stats.target_progress_pct >= 100 else 'warn' }}">
+    <span style="width: {{ '%.1f'|format(stats.target_progress_pct) }}%"></span>
+  </div>
+  <p class="muted small mt" style="margin-bottom:0">
+    {% if stats.shortfall_seconds_today > 0 %}
+      Short by {{ stats.shortfall_seconds_today | duration }} of generated motion.
+      See <a href="/capacity">Daily Capacity</a> for what your configured providers can
+      actually deliver - verified free allowances fall far short of 20 minutes a day.
+    {% else %}
+      Target met for today.
+    {% endif %}
+  </p>
+</div>

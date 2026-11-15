@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Daily Capacity - AI Video Generation Manager{% endblock %}
+{% block heading %}Daily Capacity{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Recurring free website credits, counted in seconds of video per day.
+    One-off API trials are listed underneath and are not spread out to look like a daily rate.
+  </p>
+{% endblock %}
+{% block content %}
+  {% if not reachable %}
+    <div class="banner warn mb">
+      <strong>The {{ target_minutes | round(0) | int }}-minute daily target is not reachable on free allowances.</strong>
+      Even the optimistic reading of every site is {{ bands[-1].seconds | round(0) | int }} seconds,
+      which is {{ (shortfall_seconds / 60) | round(1) }} minutes short of
+      {{ target_minutes }} minutes. Signing up for more accounts to close that gap
+      is against the sites' terms, and this app will not help with it.
+    </div>
+  {% else %}
+    <div class="banner good mb">
+      The optimistic reading meets the {{ target_minutes }}-minute target.
+    </div>
+  {% endif %}
+
+  <div class="grid grid-3 mb">
+    {% for band in bands %}
+      <div class="stat {{ 'warn' if loop.last else '' }}">
+        <div class="label">{{ band.label }}</div>
+        <div class="value">{{ band.seconds | round(0) | int }}s</div>
+        <div class="hint">{{ (band.seconds / 60) | round(1) }} min / day</div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="panel mb">
+    {% for band in bands %}
+      <p class="small muted"><strong>{{ band.label }}.</strong> {{ band.what_it_includes }}</p>
+    {% endfor %}
+    <p class="small muted">
+      Signup bonuses add about {{ signup_bonus_seconds | round(0) | int }} seconds once,
+      across the sites that publish one. They are not part of the daily figures.
+    </p>
+  </div>
+
+  <div class="panel mb">
+    <h2>One-off API trials, not a daily allowance</h2>
+    <p class="small">
+      Alibaba Model Studio: {{ alibaba_seconds_once }} seconds total
+      ({{ 50 }} seconds on each of {{ 4 }} Wan image-to-video models), valid
+      {{ alibaba_days }} days, once. Checked 2026-10-28.
+    </p>
+    <p class="small">
+      BytePlus ModelArk: {{ '{:,}'.format(byteplus_tokens_once) }} tokens total
+      (2,000,000 on each of two Seedance models), once. This is tokens, not seconds,
+      so it is not converted into a clip count here.
+    </p>
+    <p class="tiny muted">No image-to-video API found offers a recurring free daily allowance.</p>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="stat">
+      <div class="label">Generated video on disk</div>
+      <div class="value">{{ generated_seconds | round(1) }}s</div>
+      <div class="hint">
+        {{ measured_clips }} clip(s) with a measured duration.
+        {% if unmeasured_clips %}{{ unmeasured_clips }} more have no measurement and are not included.{% endif %}
+      </div>
+    </div>
+    <div class="stat">
+      <div class="label">Assembled files</div>
+      <div class="value">{{ assembled_output_seconds | round(1) }}s</div>
+      <div class="hint">
+        Rendered length. The source clips inside them are
+        {{ assembled_source_seconds | round(1) }}s and are already in the generated total.
+        Assembling does not create new AI video.
+      </div>
+    </div>
+  </div>
+
+  <div class="panel mt">
+    <h2>Per site</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Site</th><th>Published?</th><th class="right">Low</th><th class="right">High</th><th>Resolution</th></tr>
+        </thead>
+        <tbody>
+          {% for site in sites %}
+            <tr>
+              <td>{{ site.name }}</td>
+              <td>{% if site.allowance_verified %}<span class="badge good">yes</span>{% else %}<span class="badge warn">unverified</span>{% endif %}</td>
+              <td class="right">{{ site.seconds_per_day_low | round(0) | int }}s</td>
+              <td class="right">{{ site.seconds_per_day_high | round(0) | int }}s</td>
+              <td class="tiny">{{ site.max_free_resolution }}{% if site.watermarked %} · watermark{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

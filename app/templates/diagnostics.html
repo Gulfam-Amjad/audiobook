@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Diagnostics - AI Video Generation Manager{% endblock %}
+{% block heading %}Diagnostics{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Why something is unavailable, and a download you can share. The download
+    is built without reading <code>.env</code>, so API keys are not in it.
+  </p>
+{% endblock %}
+{% block actions %}
+  <a class="btn-small btn-primary" href="/diagnostics/export">Download diagnostic</a>
+{% endblock %}
+{% block content %}
+  <div class="grid grid-3 mb">
+    <div class="stat {{ 'good' if db_ok else 'bad' }}">
+      <div class="label">Database</div>
+      <div class="value">{{ 'OK' if db_ok else 'Down' }}</div>
+      <div class="hint">{{ db_message }}</div>
+    </div>
+    <div class="stat {{ 'good' if ffmpeg.available else 'warn' }}">
+      <div class="label">FFmpeg</div>
+      <div class="value">{{ 'Ready' if ffmpeg.available else 'Missing' }}</div>
+      <div class="hint">{{ ffmpeg.ffmpeg_version or ffmpeg.message }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Version</div>
+      <div class="value" style="font-size:16px">{{ version }}</div>
+      <div class="hint mono">{{ data_root }}</div>
+    </div>
+  </div>
+
+  {% if startup_problems or import_errors %}
+    <div class="banner bad mb">
+      <strong>Startup problems</strong>
+      <ul>
+        {% for problem in startup_problems %}<li>{{ problem }}</li>{% endfor %}
+        {% for key, error in import_errors.items() %}
+          <li class="mono tiny">{{ key }}: {{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if not ffmpeg.available %}
+    <div class="banner warn mb">
+      {{ ffmpeg.message }}
+      <ul>
+        {% for label, command in install.commands %}
+          <li><span class="mono">{{ command }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Providers</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Provider</th><th>Enabled</th><th>Status</th><th>Last check</th></tr>
+        </thead>
+        <tbody>
+          {% for row in providers %}
+            <tr>
+              <td>{{ row.display_name }}</td>
+              <td>{{ 'yes' if row.enabled else 'no' }}</td>
+              <td><span class="badge {{ row.verification_status | tone }}">{{ row.verification_status | pretty_status }}</span></td>
+              <td class="tiny">{{ row.last_check_message or '—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny muted">
+      "Unverified" means no real video has come back through that adapter.
+      "No credentials" means the key is not in <code>.env</code>.
+      A connection test is not the same as a finished video.
+    </p>
+  </div>
+{% endblock %}

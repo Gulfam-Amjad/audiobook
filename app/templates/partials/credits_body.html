@@ -1,0 +1,322 @@
+{% set cap_tone = 'bad' if spend.cap_used_pct >= 90 else ('warn' if spend.cap_used_pct >= 60 else 'good') %}
+
+<div class="grid grid-4 mb">
+  <div class="stat {{ 'warn' if paid_enabled else 'good' }}">
+    <div class="label">Paid generation</div>
+    <div class="value">{{ 'ON' if paid_enabled else 'OFF' }}</div>
+    <div class="hint">
+      {% if paid_enabled %}real charges are possible{% else %}nothing can be charged{% endif %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="label">Monthly cap</div>
+    <div class="value">{{ monthly_cap_usd | usd }}</div>
+    <div class="hint">shared across every provider</div>
+  </div>
+  <div class="stat {{ cap_tone if monthly_cap_usd > 0 else '' }}">
+    <div class="label">Committed this month</div>
+    <div class="value">{{ spend.month_committed_usd | usd }}</div>
+    <div class="hint">
+      {{ spend.month_actual_usd | usd }} confirmed,
+      {{ spend.month_estimated_usd | usd }} estimated
+    </div>
+  </div>
+  <div class="stat">
+    <div class="label">Accounts authorised</div>
+    <div class="value">{{ authorized_accounts | length }}</div>
+    <div class="hint">
+      {% if authorized_accounts %}{{ authorized_accounts | join(', ') }}{% else %}none{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not paid_enabled %}
+  <div class="banner good mb">
+    <strong>Nothing here can spend money.</strong>
+    Paid generation is switched off, which is the default. Three things must all be
+    true before a single cent is committed: paid generation on in
+    <a href="/settings">Settings</a>, a monthly cap above $0, and the specific account
+    authorised below. Jobs that cost nothing - the mock provider, or a free grant -
+    are unaffected and still run.
+  </div>
+{% elif monthly_cap_usd <= 0 %}
+  <div class="banner warn mb">
+    <strong>Paid generation is on but the cap is $0</strong>, so every paid job will
+    still be refused. Set a monthly cap in <a href="/settings">Settings</a>.
+  </div>
+{% else %}
+  <div class="banner warn mb">
+    <strong>Real money can be spent.</strong>
+    {{ spend.remaining_usd | usd }} of the {{ monthly_cap_usd | usd }} cap is left this
+    month. The cap counts a job's confirmed charge where the provider reported one and
+    its estimate otherwise, so it errs on the side of holding a job back.
+  </div>
+{% endif %}
+
+{% if rows %}
+  {% for row in rows %}
+    {% set account = row.account %}
+    <div class="panel mb" x-data="{ tab: '' }">
+      <div class="spread">
+        <div style="min-width:0">
+          <strong>{{ row.provider_name }}</strong>
+          <span class="muted small">/ {{ account.label }}</span>
+          {# A mock or manual provider can never produce a verified real call, #}
+          {# so labelling it "unverified" would imply something is outstanding. #}
+          {% if row.kind == 'api' %}
+            {% if row.verified %}
+              <span class="badge good">provider verified</span>
+            {% else %}
+              <span class="badge warn">provider unverified</span>
+            {% endif %}
+          {% endif %}
+          {% if account.paid_authorized %}
+            <span class="badge bad">authorised to charge</span>
+          {% endif %}
+          {% if not account.enabled %}<span class="badge neutral">off</span>{% endif %}
+          {% if row.free_tier_note %}
+            <div class="muted tiny" style="margin-top:4px">{{ row.free_tier_note }}</div>
+          {% endif %}
+        </div>
+        <div class="row nowrap">
+          <form hx-post="/accounts/{{ account.id }}/enabled" hx-target="#credits-body">
+            <input type="hidden" name="enabled" value="{{ 'false' if account.enabled else 'true' }}">
+            <button class="btn-small">{{ 'Disable' if account.enabled else 'Enable' }}</button>
+          </form>
+          {% if row.exposes_balance %}
+            <button class="btn-small"
+                    hx-post="/accounts/{{ account.id }}/refresh"
+                    hx-target="#credits-body">Read balance</button>
+          {% endif %}
+          <button class="btn-small" @click="tab = tab === 'limits' ? '' : 'limits'">Limits</button>
+          <button class="btn-small" @click="tab = tab === 'paid' ? '' : 'paid'">
+            {{ 'Withdraw authorisation' if account.paid_authorized else 'Authorise paid use' }}
+          </button>
+        </div>
+      </div>
+
+      {# ---- allowances ---- #}
+      <div class="table-wrap mt">
+        <table>
+          <thead>
+            <tr>
+              <th>Allowance</th><th>Balance</th><th>Source</th>
+              <th>Refresh</th><th>Expires</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in row.entitlements %}
+              {% set reset = row.resets[e.id] %}
+              <tr>
+                <td>
+                  {{ e.name }}
+                  {% if e.is_paid %}<span class="badge bad">paid</span>{% endif %}
+                </td>
+                <td class="nowrap">{{ balance_label(e.source, e.balance, e.unit) }}</td>
+                <td>
+                  <span class="badge {{ e.source | tone }}">{{ e.source | pretty_status }}</span>
+                </td>
+                <td class="tiny">
+                  {{ e.refresh_interval | pretty_status }}
+                  <div class="muted tiny">{{ reset.description }}</div>
+                </td>
+                <td class="tiny nowrap">
+                  {% if e.expires_at %}{{ e.expires_at.strftime('%Y-%m-%d') }}{% else %}<span class="muted">-</span>{% endif %}
+                </td>
+                <td class="right nowrap">
+                  <button class="btn-small" @click="tab = tab === 'e{{ e.id }}' ? '' : 'e{{ e.id }}'">Edit</button>
+                  {% if e.refresh_interval != 'none' %}
+                    <button class="btn-small"
+                            hx-post="/allowances/{{ e.id }}/reset"
+                            hx-target="#credits-body"
+                            hx-confirm="Record that '{{ e.name }}' has refilled? The balance becomes unknown until you enter the new figure.">
+                      It refilled
+                    </button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if e.note %}
+                <tr><td colspan="6" class="tiny muted">{{ e.note }}</td></tr>
+              {% endif %}
+              <tr x-show="tab === 'e{{ e.id }}'" x-cloak>
+                <td colspan="6">
+                  <form hx-post="/allowances/{{ e.id }}" hx-target="#credits-body">
+                    <div class="field-row">
+                      <div class="field">
+                        <label>Balance (blank = unknown)</label>
+                        <input type="number" step="any" min="0" name="balance"
+                               value="{{ '' if e.balance is none else e.balance }}">
+                      </div>
+                      <div class="field">
+                        <label>Unit</label>
+                        <input type="text" name="unit" list="credit-units" value="{{ e.unit }}">
+                      </div>
+                      <div class="field">
+                        <label>Refreshes</label>
+                        <select name="refresh_interval">
+                          {% for interval in intervals %}
+                            <option value="{{ interval }}" {{ 'selected' if e.refresh_interval == interval }}>
+                              {{ interval | pretty_status }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label>Expires (YYYY-MM-DD)</label>
+                        <input type="text" name="expires_at" placeholder="blank = never"
+                               value="{{ e.expires_at.strftime('%Y-%m-%d') if e.expires_at else '' }}">
+                      </div>
+                      <div class="field">
+                        <label>Cost per unit (USD)</label>
+                        <input type="number" step="any" min="0" name="unit_cost_usd"
+                               placeholder="blank = free"
+                               value="{{ '' if e.unit_cost_usd is none else e.unit_cost_usd }}">
+                      </div>
+                    </div>
+                    <div class="check mb">
+                      <input type="checkbox" id="paid-{{ e.id }}" name="is_paid" value="true"
+                             {{ 'checked' if e.is_paid }}>
+                      <label for="paid-{{ e.id }}">
+                        This allowance is money I paid for
+                      </label>
+                    </div>
+                    <div class="field">
+                      <label>Note</label>
+                      <input type="text" name="note" value="{{ e.note or '' }}"
+                             placeholder="e.g. read off the dashboard on 28 Oct">
+                    </div>
+                    <div class="row">
+                      <button type="submit" class="btn-primary btn-small">Save as my figure</button>
+                      <button type="button" class="btn-small btn-danger"
+                              hx-delete="/allowances/{{ e.id }}"
+                              hx-target="#credits-body"
+                              hx-confirm="Stop tracking '{{ e.name }}'?">Stop tracking</button>
+                      <span class="tiny muted">
+                        Saved figures are labelled as entered by you, never as verified.
+                      </span>
+                    </div>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="muted small">No allowance tracked yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <form class="row mt" hx-post="/accounts/{{ account.id }}/allowances" hx-target="#credits-body">
+        <input type="text" name="name" placeholder="Track another allowance (e.g. free grant)"
+               style="max-width:320px" required>
+        <button class="btn-small">Add</button>
+      </form>
+
+      {# ---- usage ---- #}
+      <div class="row mt tiny muted">
+        <span>{{ row.usage.jobs_today }} job(s) today</span>
+        <span>&middot;</span>
+        <span>{{ row.usage.jobs_month }} this month</span>
+        <span>&middot;</span>
+        <span>{{ row.usage.successes }} succeeded / {{ row.usage.failures }} failed</span>
+        {% if row.usage.success_rate is not none %}
+          <span>&middot;</span>
+          <span>{{ (row.usage.success_rate * 100) | round(0) | int }}% success</span>
+        {% endif %}
+        {% if account.daily_job_cap is not none %}
+          <span>&middot;</span>
+          <span>daily cap {{ account.daily_job_cap }}</span>
+        {% endif %}
+      </div>
+
+      {# ---- limits ---- #}
+      <div x-show="tab === 'limits'" x-cloak class="mt">
+        <form hx-post="/accounts/{{ account.id }}/limits" hx-target="#credits-body">
+          <div class="field-row">
+            <div class="field">
+              <label>Max at once</label>
+              <input type="number" min="1" name="concurrency_limit"
+                     value="{{ '' if account.concurrency_limit is none else account.concurrency_limit }}">
+            </div>
+            <div class="field">
+              <label>Requests per minute</label>
+              <input type="number" min="1" name="requests_per_minute" placeholder="blank = no limit"
+                     value="{{ '' if account.requests_per_minute is none else account.requests_per_minute }}">
+            </div>
+            <div class="field">
+              <label>Jobs per day</label>
+              <input type="number" min="0" name="daily_job_cap" placeholder="blank = no cap"
+                     value="{{ '' if account.daily_job_cap is none else account.daily_job_cap }}">
+            </div>
+          </div>
+          <button type="submit" class="btn-primary btn-small">Save limits</button>
+          <span class="tiny muted">
+            A daily cap of 0 stops this account entirely without disabling it.
+          </span>
+        </form>
+      </div>
+
+      {# ---- paid authorisation ---- #}
+      <div x-show="tab === 'paid'" x-cloak class="mt">
+        {% if account.paid_authorized %}
+          <div class="banner warn">
+            <p style="margin:0 0 8px">
+              This account is currently authorised to be charged real money. Withdrawing
+              that takes effect immediately; free allowances keep working.
+            </p>
+            <form hx-post="/accounts/{{ account.id }}/paid" hx-target="#credits-body">
+              <input type="hidden" name="authorized" value="false">
+              <button class="btn-small">Withdraw authorisation</button>
+            </form>
+          </div>
+        {% else %}
+          <div class="banner bad">
+            <p style="margin:0 0 8px">
+              <strong>This authorises real charges on {{ row.provider_name }}.</strong>
+              Spending still also requires paid generation to be on and a monthly cap
+              above $0, and every job stays inside that shared cap. Costs are estimates
+              from published rates, not quotes - the provider's own figure wins.
+            </p>
+            <form hx-post="/accounts/{{ account.id }}/paid" hx-target="#credits-body"
+                  hx-confirm="Authorise real spending on '{{ account.label }}'?">
+              <input type="hidden" name="authorized" value="true">
+              <button class="btn-small btn-danger">I understand - authorise this account</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty">
+    No accounts yet. An account appears here once a provider's credentials are in
+    <code>.env</code>. See <a href="/providers">Providers</a> for what each one needs.
+  </div>
+{% endif %}
+
+{% if providers_without_accounts %}
+  <div class="panel panel-tight">
+    <h3 style="margin:0 0 6px">Providers with no account</h3>
+    <p class="small muted" style="margin:0 0 8px">
+      These have no credentials in <code>.env</code> yet, so there is nothing to track.
+      Add a key and restart and an account appears automatically. You can also add a
+      second account on a provider you already hold one with:
+    </p>
+    <form class="row" hx-post="/accounts/new" hx-target="#credits-body">
+      <select name="provider_key">
+        {% for caps in providers_without_accounts %}
+          <option value="{{ caps.key }}">{{ caps.display_name }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="label" placeholder="Label" required style="max-width:200px">
+      <button class="btn-small">Add account</button>
+    </form>
+    <p class="tiny muted" style="margin:8px 0 0">
+      Providers forbid using extra accounts to get around a free trial, and this app
+      will not help with that. Use this only for keys you genuinely hold separately.
+    </p>
+  </div>
+{% endif %}
+
+<datalist id="credit-units">
+  {% for unit in units %}<option value="{{ unit }}">{% endfor %}
+</datalist>

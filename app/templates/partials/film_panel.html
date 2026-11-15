@@ -1,0 +1,62 @@
+<div class="panel mb" id="film-panel"
+  {% if film_run and film_run.stage not in ('done', 'failed') %}
+    hx-get="/partials/projects/{{ project.id }}/film" hx-trigger="every 3s" hx-swap="outerHTML"
+  {% endif %}>
+  <h2>Finished film</h2>
+  <p class="small">
+    One run from the approved script to a checked film: narration, shots, camera
+    moves, transitions, cards, word captions, music, ambience and effects, then the
+    upload assets, a titled thumbnail, a 45-second Short and a contact sheet.
+    Nothing is uploaded.
+  </p>
+  {% if film_run %}
+    <p>
+      {% if film_run.stage == 'done' %}<span class="badge good">done</span>
+      {% elif film_run.stage == 'failed' %}<span class="badge bad">failed</span>
+      {% else %}<span class="badge info">{{ film_run.stage }}</span>{% endif %}
+      {% if film_run.duration_s %}{{ film_run.duration_s | round(1) }}s{% endif %}
+    </p>
+    <ul class="tiny">
+      {% for line in film_run.log %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% if film_run.problems %}
+      <p class="tiny muted">Notes:</p>
+      <ul class="tiny">{% for p in film_run.problems[:8] %}<li>{{ p }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if film_run.video %}<p class="tiny path">{{ film_run.video }}</p>{% endif %}
+    {% if film_run.manifest %}<p class="tiny path">{{ film_run.manifest }}</p>{% endif %}
+  {% endif %}
+  {% if not film_run or film_run.stage in ('done', 'failed') %}
+    <form hx-post="/projects/{{ project.id }}/film" hx-target="#film-panel" hx-swap="outerHTML">
+      <div class="grid grid-2">
+        <label>
+          Look
+          <select name="look">
+            {% for look in film_looks %}
+              <option value="{{ look }}" {{ 'selected' if look == film_settings.look }}>{{ look }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Captions
+          <select name="captions">
+            {% for mode in film_captions %}
+              <option value="{{ mode }}" {{ 'selected' if mode == film_settings.captions }}>{{ mode }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          End card line
+          <input type="text" name="end_card" value="{{ film_settings.end_card or '' }}" maxlength="80"
+                 placeholder="Thanks for watching">
+        </label>
+      </div>
+      <button type="submit" class="primary" {{ 'disabled' if not (script and script.approved) }}>
+        Make the finished film
+      </button>
+      {% if not (script and script.approved) %}
+        <span class="tiny muted">Approve a script first.</span>
+      {% endif %}
+    </form>
+  {% endif %}
+</div>

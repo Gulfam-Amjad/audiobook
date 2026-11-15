@@ -1,0 +1,31 @@
+{
+  "file": "C:\\Users\\Gulfam\\Desktop\\youtube\\mighty-chapters-shorts\\03-tamam-shud.mp4",
+  "title": "The Dead Man and the Two-Word Code",
+  "duration_s": 51.0,
+  "loudness": "Input Integrated:    -15.1 LUFS",
+  "bytes": 105838657,
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 1080,
+        "height": 1920,
+        "avg_frame_rate": "30/1"
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio",
+        "sample_rate": "48000",
+        "channels": 2,
+        "avg_frame_rate": "0/0"
+      }
+    ],
+    "format": {
+      "duration": "51.000000",
+      "size": "105838657"
+    }
+  }
+}

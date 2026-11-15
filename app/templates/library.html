@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Video Library - AI Video Generation Manager{% endblock %}
+{% block heading %}Video Library{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Duration here is what FFprobe measured in the file, not the length that was
+    requested. A clip with no measurement is counted as unknown, not as the
+    requested length.
+  </p>
+{% endblock %}
+{% block content %}
+  <div id="library-body">
+    {% include "partials/library_body.html" %}
+  </div>
+{% endblock %}

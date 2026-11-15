@@ -1,0 +1,55 @@
+{% if outputs %}
+  <form id="export-form" method="post" action="/outputs/export">
+    <input type="hidden" name="output_ids" id="export-ids" value="">
+    <button class="btn-small btn-primary mb" type="submit"
+            onclick="document.getElementById('export-ids').value =
+              [...document.querySelectorAll('.clip-pick:checked')].map(el => el.value).join(',')">
+      Download selected as zip
+    </button>
+  </form>
+  {% for output in outputs %}
+    {% set requested = output.job.settings.get('duration_s') if output.job and output.job.settings else none %}
+    <div class="panel panel-tight mb">
+      <div class="spread">
+        <div>
+          <label class="check">
+            <input class="clip-pick" type="checkbox" value="{{ output.id }}">
+            <strong>{{ output.file_path.split('\\')[-1].split('/')[-1] }}</strong>
+          </label>
+          <div class="tiny muted">
+            {{ output.source }} · {{ output.provider_key or 'unknown provider' }} ·
+            {{ output.file_size | filesize }}
+            {% if output.width and output.height %} · {{ output.width }}×{{ output.height }}{% endif %}
+          </div>
+          <div class="small" style="margin-top:4px">
+            {% if output.duration_s is not none %}
+              Measured <strong>{{ '%.2f'|format(output.duration_s) }}s</strong>
+            {% else %}
+              <span class="badge warn">duration unknown</span>
+            {% endif %}
+            {% if requested is not none %}
+              <span class="muted">· requested {{ requested }}s</span>
+            {% endif %}
+          </div>
+          {% if output.probe_error %}
+            <div class="tiny muted">{{ output.probe_error }}</div>
+          {% endif %}
+        </div>
+        <div class="row">
+          <button class="btn-small" hx-post="/outputs/{{ output.id }}/reprobe" hx-target="#library-body">
+            Re-probe
+          </button>
+          <button class="btn-small" hx-post="/outputs/{{ output.id }}/open" hx-target="#library-body">
+            Open folder
+          </button>
+        </div>
+      </div>
+      <video class="mt" controls preload="metadata" style="max-width:480px;width:100%"
+             src="/outputs/{{ output.id }}/media"></video>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty">
+    No clips yet. Finished API jobs and manual-assist downloads show up here.
+  </div>
+{% endif %}

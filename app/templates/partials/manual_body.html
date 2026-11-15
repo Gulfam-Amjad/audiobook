@@ -1,0 +1,181 @@
+<div class="banner info mb">
+  Put the match code in the downloaded filename, for example
+  <span class="mono">clip-avm-a1b2c3.mp4</span>, and it is filed against that
+  worksheet row. A file with no code, dropped in the site's own folder, is
+  attached to the oldest waiting clip there. Anything else waits in the tray
+  below — it is never guessed.
+  <div class="tiny muted" style="margin-top:4px">Inbox: <span class="mono">{{ inbox }}</span></div>
+</div>
+
+<div class="row mb">
+  {% for view in sites %}
+    <a class="btn-small {{ 'btn-primary' if selected and selected.site.key == view.site.key else '' }}"
+       href="/manual?site={{ view.site.key }}"
+       style="text-decoration:none">
+      {{ view.site.name }}
+      {% if view.waiting %}<span class="badge info">{{ view.waiting | length }}</span>{% endif %}
+    </a>
+  {% endfor %}
+</div>
+
+{% if selected %}
+  {% set site = selected.site %}
+  <div class="panel mb">
+    <div class="spread">
+      <div>
+        <h2 style="margin:0">{{ site.name }}</h2>
+        <p class="small muted" style="margin:6px 0 0">{{ site.free_allowance }}</p>
+        <p class="tiny muted" style="margin:4px 0 0">
+          About {{ site.seconds_per_day_low | round(0) | int }}–{{ site.seconds_per_day_high | round(0) | int }}s
+          of video a day
+          {% if site.allowance_verified %}(published){% else %}(not confirmed){% endif %}.
+          Free max {{ site.max_free_resolution }}.
+          {% if site.watermarked %}Watermarked.{% endif %}
+          Checked {{ site.checked_on }}.
+          <a href="{{ site.url }}" target="_blank" rel="noopener">Open site</a>
+        </p>
+        {% if site.automation_prohibited %}
+          <p class="tiny muted" style="margin:4px 0 0">Terms: {{ site.automation_clause }}</p>
+        {% endif %}
+      </div>
+      <form hx-post="/manual/open-folder" hx-target="#manual-body">
+        <input type="hidden" name="site_key" value="{{ site.key }}">
+        <button class="btn-small">Open inbox folder</button>
+      </form>
+    </div>
+
+    <form class="row mt" hx-post="/manual/sites/{{ site.key }}/balance" hx-target="#manual-body">
+      <input type="hidden" name="entitlement_id" value="{{ selected.entitlement.id }}">
+      <label class="tiny muted">Credits you see on the site</label>
+      <input type="number" step="any" min="0" name="balance" style="width:110px"
+             placeholder="unknown"
+             value="{{ '' if selected.entitlement.balance is none else selected.entitlement.balance }}">
+      <span class="tiny">{{ selected.entitlement.unit }}</span>
+      <select name="refresh_interval">
+        {% for interval in intervals %}
+          <option value="{{ interval }}" {{ 'selected' if selected.entitlement.refresh_interval == interval }}>
+            {{ interval | pretty_status }}
+          </option>
+        {% endfor %}
+      </select>
+      <button class="btn-small">Save as my figure</button>
+      <span class="badge {{ selected.entitlement.source | tone }}">
+        {{ balance_label(selected.entitlement.source, selected.entitlement.balance, selected.entitlement.unit) }}
+      </span>
+    </form>
+    <p class="tiny muted" style="margin:6px 0 0">
+      {{ site.credit_cost_note or 'Per-clip cost is not published, so the app will not subtract credits for you.' }}
+      A daily reset is not assumed; record it on Credits when you see the allowance refill.
+    </p>
+  </div>
+
+  <div class="panel mb">
+    <h2>Add stills to this worksheet</h2>
+    {% if new_images %}
+      <form hx-post="/manual/prepare" hx-target="#manual-body">
+        <input type="hidden" name="site_key" value="{{ site.key }}">
+        <div class="thumbs">
+          {% for image in new_images %}
+            <label class="thumb">
+              <input class="pick" type="checkbox" name="pick" value="{{ image.id }}"
+                     onchange="document.getElementById('manual-ids').value =
+                       [...document.querySelectorAll('#manual-body input[name=pick]:checked')].map(el => el.value).join(',')">
+              {% if image.thumb_path %}
+                <img src="/images/{{ image.id }}/thumb" alt="">
+              {% endif %}
+              <div class="meta"><div class="name" title="{{ image.filename }}">{{ image.filename }}</div></div>
+            </label>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="manual-ids" name="image_ids" value="">
+        <button class="btn-primary mt" type="submit">Put selected stills on the worksheet</button>
+        <span class="tiny muted">Uses the default length and resolution from Settings. Nothing is uploaded.</span>
+      </form>
+    {% else %}
+      <p class="muted small">
+        No new stills in the library. Add your image folder on
+        <a href="/images">Image Library</a>, then come back.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="panel mb">
+    <div class="spread">
+      <h2 style="margin:0">Worksheet — {{ selected.waiting | length }} waiting</h2>
+      <form hx-post="/manual/scan" hx-target="#manual-body">
+        <input type="hidden" name="site" value="{{ site.key }}">
+        <button class="btn-small">Rescan inbox</button>
+      </form>
+    </div>
+    {% if selected.waiting %}
+      {% for job in selected.waiting %}
+        {% set image = images.get(job.image_id) %}
+        <div class="panel panel-tight mt" style="background: var(--panel-2);">
+          <div class="spread">
+            <div class="row">
+              {% if image and image.thumb_path %}
+                <img src="/images/{{ image.id }}/thumb" alt="" style="width:72px;height:54px;object-fit:cover;border-radius:6px">
+              {% endif %}
+              <div>
+                <div class="small">{{ image.filename if image else 'image ' ~ job.image_id }}</div>
+                <div class="tiny muted">
+                  {{ job.settings.get('duration_s', '?') }}s ·
+                  {{ job.settings.get('resolution', '?') }} ·
+                  {{ job.settings.get('aspect_ratio', '?') }}
+                </div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div class="tiny muted">Put this in the filename</div>
+              <div class="mono" style="font-size:18px">{{ job.manual_token }}</div>
+            </div>
+          </div>
+          <textarea class="mono small mt" rows="3" readonly style="width:100%">{{ job.prompt }}</textarea>
+          {% if job.negative_prompt %}
+            <p class="tiny muted" style="margin:4px 0 0">Negative: {{ job.negative_prompt }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted small">Nothing waiting on {{ site.name }}.</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="panel">
+  <h2>Unmatched downloads</h2>
+  {% if unmatched %}
+    {% for item in unmatched %}
+      <div class="spread mt" style="align-items:flex-start">
+        <div style="min-width:0">
+          <div class="mono small">{{ item.file_path }}</div>
+          <div class="tiny muted">
+            {{ item.file_size | filesize }}
+            {% if item.site_hint %} · folder {{ item.site_hint }}{% endif %}
+            {% if item.detected_token %} · code {{ item.detected_token }}{% endif %}
+          </div>
+          <div class="tiny muted">{{ item.message }}</div>
+        </div>
+        <div class="row">
+          {% if waiting_jobs %}
+            <form class="row" hx-post="/manual/inbox/{{ item.id }}/assign" hx-target="#manual-body">
+              <input type="hidden" name="site" value="{{ selected.site.key if selected else '' }}">
+              <select name="job_id">
+                {% for job in waiting_jobs %}
+                  <option value="{{ job.id }}">#{{ job.id }} {{ job.manual_token }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn-small btn-primary">Attach</button>
+            </form>
+          {% endif %}
+          <form hx-post="/manual/inbox/{{ item.id }}/dismiss" hx-target="#manual-body">
+            <input type="hidden" name="site" value="{{ selected.site.key if selected else '' }}">
+            <button class="btn-small">Ignore</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="muted small" style="margin:0">No unmatched files.</p>
+  {% endif %}
+</div>

@@ -1,0 +1,254 @@
+<div id="project-detail">
+  <div class="grid grid-4 mb">
+    <div class="stat">
+      <div class="label">Status</div>
+      <div class="value">{{ project.status }}</div>
+      <div class="hint">next: {{ next_stage.value if next_stage else 'nothing left' }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Narration recorded</div>
+      <div class="value">{{ progress.measured_audio_s | round(1) }}s</div>
+      <div class="hint">{{ progress.audio_ready }} of {{ progress.audio_total }} lines, measured with ffprobe</div>
+    </div>
+    <div class="stat">
+      <div class="label">Generated motion</div>
+      <div class="value">{{ progress.generated_motion_s | round(1) }}s</div>
+      <div class="hint">budget {{ project.max_generated_motion_s | round(0) | int }}s per run</div>
+    </div>
+    <div class="stat">
+      <div class="label">Assembled length</div>
+      <div class="value">{{ progress.assembled_s | round(1) }}s</div>
+      <div class="hint">{{ progress.clips_selected }} selected clip(s), motion and camera moves together</div>
+    </div>
+  </div>
+
+  <div class="panel mb">
+    <h2>Pipeline stages</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Status</th><th>Last message</th><th>Attempts</th></tr>
+        </thead>
+        <tbody>
+          {% for cp in checkpoints %}
+            <tr>
+              <td>{{ cp.stage }}</td>
+              <td>
+                {% if cp.status == 'completed' %}<span class="badge good">completed</span>
+                {% elif cp.status == 'failed' %}<span class="badge bad">failed</span>
+                {% elif cp.status == 'blocked' %}<span class="badge warn">needs you</span>
+                {% elif cp.status == 'partial' %}<span class="badge warn">partial</span>
+                {% elif cp.status == 'running' %}<span class="badge info">running</span>
+                {% else %}<span class="badge">{{ cp.status }}</span>{% endif %}
+              </td>
+              <td class="tiny">{{ cp.blocked_reason or cp.message or '' }}</td>
+              <td class="right">{{ cp.attempt }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny muted">
+      A stage is only marked completed once its output exists on disk. Partial
+      means work remains and a resume will pick up where it stopped.
+    </p>
+  </div>
+
+  <div class="panel mb">
+    <h2>Script</h2>
+    {% if script %}
+      <p>
+        <strong>{{ script.title or 'Untitled' }}</strong>
+        <span class="badge">v{{ script.version }}</span>
+        {% if script.is_valid %}<span class="badge good">valid</span>{% else %}<span class="badge bad">not valid</span>{% endif %}
+        {% if script.approved %}<span class="badge good">approved</span>{% else %}<span class="badge warn">not approved</span>{% endif %}
+      </p>
+      {% if script.logline %}<p class="small">{{ script.logline }}</p>{% endif %}
+      <p class="tiny muted">
+        {{ script.word_count }} words, estimated {{ script.estimated_duration_s | round(0) | int }}s
+        at {{ project.speaking_rate_wpm }} wpm. This is an estimate until the narration is synthesised.
+      </p>
+      {% if scenes %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Purpose</th><th class="right">Target</th><th>Method</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {% for scene in scenes %}
+                <tr>
+                  <td>{{ scene.order_index + 1 }}</td>
+                  <td class="tiny">{{ scene.purpose or scene.narration or '' }}</td>
+                  <td class="right">{{ scene.target_duration_s | round(1) }}s</td>
+                  <td class="tiny">{{ scene.assigned_method or scene.preferred_method or 'not routed' }}</td>
+                  <td><span class="badge">{{ scene.status }}</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    {% else %}
+      <p class="muted">No script yet.</p>
+    {% endif %}
+    <a href="/projects/{{ project.id }}/script" class="button mt">
+      {{ 'Review the script' if script else 'Write the script' }}
+    </a>
+  </div>
+
+  {% include "partials/film_panel.html" %}
+
+  {% if renders %}
+    <div class="panel mb">
+      <h2>Renders</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>When</th><th>Status</th><th class="right">Length</th><th class="right">Generated motion</th><th>File</th></tr>
+          </thead>
+          <tbody>
+            {% for render in renders %}
+              <tr>
+                <td class="tiny">{{ render.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><span class="badge">{{ render.status }}</span></td>
+                <td class="right">{{ (render.duration_s or 0) | round(1) }}s</td>
+                <td class="right">{{ render.generated_motion_s | round(1) }}s</td>
+                <td class="tiny path">{{ render.output_path or '' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Settings</h2>
+    <form hx-post="/projects/{{ project.id }}" hx-target="#project-detail" hx-swap="outerHTML">
+      <div class="grid grid-2">
+        <label>
+          Name
+          <input type="text" name="name" value="{{ project.name }}" required maxlength="200">
+        </label>
+        <label>
+          Niche
+          <input type="text" name="niche" value="{{ project.niche }}" maxlength="200">
+        </label>
+        <label>
+          Audience
+          <input type="text" name="audience" value="{{ project.audience }}" maxlength="200">
+        </label>
+        <label>
+          Storytelling style
+          <input type="text" name="story_style" value="{{ project.story_style }}" maxlength="200">
+        </label>
+        <label>
+          Target length (seconds)
+          <input type="number" name="target_duration_s" value="{{ project.target_duration_s }}" min="15" max="1800" step="5">
+        </label>
+        <label>
+          Language
+          <input type="text" name="language" value="{{ project.language }}" maxlength="16">
+        </label>
+        <label>
+          Aspect ratio
+          <select name="aspect_ratio">
+            {% for ratio in aspect_ratios %}
+              <option value="{{ ratio }}" {{ 'selected' if ratio == project.aspect_ratio }}>{{ ratio }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Resolution
+          <select name="resolution">
+            {% for res in resolutions %}
+              <option value="{{ res }}" {{ 'selected' if res == project.resolution }}>{{ res }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Frame rate
+          <select name="fps">
+            {% for rate in frame_rates %}
+              <option value="{{ rate }}" {{ 'selected' if rate == project.fps }}>{{ rate }} fps</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Speaking rate (words per minute)
+          <input type="number" name="speaking_rate_wpm" value="{{ project.speaking_rate_wpm }}" min="80" max="220">
+        </label>
+        <label>
+          Narrator voice
+          <select name="narrator_voice_id">
+            <option value="">Not chosen yet</option>
+            {% for voice in voices %}
+              <option value="{{ voice.id }}" {{ 'selected' if voice.id == project.narrator_voice_id }}>
+                {{ voice.name }}{% if not voice.installed %} (not installed){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Image folder
+          <select name="image_folder_id">
+            <option value="">Any folder in the library</option>
+            {% for folder in folders %}
+              <option value="{{ folder.id }}" {{ 'selected' if folder.id == project.image_folder_id }}>{{ folder.path }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Generated motion budget (seconds)
+          <input type="number" name="max_generated_motion_s" value="{{ project.max_generated_motion_s | round(0) | int }}" min="0" step="5">
+        </label>
+        <label>
+          Music level (dB)
+          <input type="number" name="music_gain_db" value="{{ project.music_gain_db | round(1) }}" min="-60" max="0" step="0.5">
+        </label>
+        <label>
+          Music file (you supply it)
+          <input type="text" name="music_path" value="{{ project.music_path or '' }}"
+                 placeholder="D:\music\bed.mp3">
+        </label>
+        <label>
+          Music preference
+          <input type="text" name="music_preference" value="{{ project.music_preference }}" maxlength="200"
+                 placeholder="Sparse piano, no drums">
+        </label>
+      </div>
+      <label class="check">
+        <input type="checkbox" name="subtitles_enabled" value="true" {{ 'checked' if project.subtitles_enabled }}>
+        Burn in subtitles
+      </label>
+      <label>
+        Were the stills made by an AI image model?
+        <select name="stills_ai_generated">
+          <option value=""
+            {{ 'selected' if project.stills_ai_generated is none }}>Not stated</option>
+          <option value="true"
+            {{ 'selected' if project.stills_ai_generated is true }}>Yes, AI-generated</option>
+          <option value="false"
+            {{ 'selected' if project.stills_ai_generated is false }}>No</option>
+        </select>
+        <span class="tiny muted">
+          The app cannot tell by looking, so the publishing disclosure says
+          nothing about the stills until you answer this.
+        </span>
+      </label>
+      <label>
+        Brief
+        <textarea name="brief" rows="3">{{ project.brief or '' }}</textarea>
+      </label>
+      <label>
+        Notes
+        <textarea name="notes" rows="2">{{ project.notes or '' }}</textarea>
+      </label>
+      <button type="submit" class="primary">Save settings</button>
+      <p class="tiny muted">
+        The generated motion budget is a hard ceiling on how much borrowed GPU
+        time and website credit one run of this project may consume.
+      </p>
+    </form>
+  </div>
+</div>

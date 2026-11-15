@@ -1,0 +1,11 @@
+<div id="bv-cover" class="bv-cover">
+  <input type="hidden" name="cover" value="{{ cover_rel }}">
+  {% if cover_rel %}
+    <img src="/files/media?path={{ cover_rel | urlencode }}" alt="Cover picture">
+    <div class="small"><b>{{ cover_name }}</b></div>
+    {% if cover_credit %}<div class="tiny muted">{{ cover_credit }}</div>{% endif %}
+  {% else %}
+    <div class="bv-cover-empty muted small">No picture: the template draws its own cover.</div>
+  {% endif %}
+  {% if note %}<div class="tiny muted">{{ note }}</div>{% endif %}
+</div>

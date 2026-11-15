@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Providers - AI Video Generation Manager{% endblock %}
+{% block heading %}Providers{% endblock %}
+{% block subheading %}
+  <p class="subtitle">
+    Every adapter here was written from the provider's own documentation and is
+    switched off until you turn it on. "Unverified" means exactly that: no video
+    has ever come back through it, so nothing on this page is proven yet.
+  </p>
+{% endblock %}
+
+{% block content %}
+  {% if import_errors %}
+    <div class="banner bad">
+      <strong>{{ import_errors | length }} adapter(s) failed to load</strong> and are
+      missing from this list:
+      <ul>
+        {% for key, error in import_errors.items() %}
+          <li class="mono tiny">{{ key }}: {{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <div class="grid grid-4 mb">
+    <div class="stat">
+      <div class="label">Adapters</div>
+      <div class="value">{{ summary.total }}</div>
+      <div class="hint">written and loadable</div>
+    </div>
+    <div class="stat">
+      <div class="label">Credentials present</div>
+      <div class="value">{{ summary.configured }}</div>
+      <div class="hint">read from .env at startup</div>
+    </div>
+    <div class="stat {{ 'good' if summary.enabled else 'warn' }}">
+      <div class="label">Enabled</div>
+      <div class="value">{{ summary.enabled }}</div>
+      <div class="hint">eligible to receive jobs</div>
+    </div>
+    <div class="stat {{ 'good' if summary.verified else 'warn' }}">
+      <div class="label">Verified</div>
+      <div class="value">{{ summary.verified }}</div>
+      <div class="hint">produced a real video</div>
+    </div>
+  </div>
+
+  <div class="banner info mb">
+    <strong>What the free allowances actually are.</strong>
+    No image-to-video API offers a recurring free daily allowance. The only genuine
+    free API quotas found are one-off: Alibaba Model Studio gives 50 seconds per Wan
+    model valid 90 days, and BytePlus ModelArk gives 2,000k free tokens on each of two
+    Seedance models - together roughly five to eight minutes of video, once. The
+    recurring free credits live on the consumer websites instead, which is what
+    <a href="/manual">Manual Assist</a> is for. Figures checked 2026-10-28; see
+    <a href="/capacity">Daily Capacity</a> for what that means against the 20-minute
+    target.
+  </div>
+
+  {% if summary.endpoint_unverified %}
+    <div class="banner warn mb">
+      <strong>Request shape inferred, not documented</strong> for
+      {{ summary.endpoint_unverified | join(', ') }}. The published docs did not
+      confirm the exact endpoint or payload, so the first live call may fail with a
+      404 or a validation error. Each one lists what needs checking in its notes
+      below. Nothing is charged for a rejected request.
+    </div>
+  {% endif %}
+
+  <div id="provider-table">
+    {% include "partials/provider_table.html" %}
+  </div>
+{% endblock %}

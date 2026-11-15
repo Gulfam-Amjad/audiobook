@@ -1,0 +1,11 @@
+<div class="row">
+  {% if queue_paused %}
+    <span class="badge warn">paused</span>
+    <button class="btn-primary" hx-post="/queue/resume" hx-target="#queue-controls">
+      Start queue
+    </button>
+  {% else %}
+    <span class="badge good">running</span>
+    <button hx-post="/queue/pause" hx-target="#queue-controls">Pause queue</button>
+  {% endif %}
+</div>
